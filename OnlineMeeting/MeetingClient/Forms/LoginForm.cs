@@ -69,7 +69,6 @@ namespace MeetingClient.Forms
             }
             catch (Exception ex)
             {
-                // chuyển về UI thread
                 if (IsHandleCreated)
                     BeginInvoke(new Action(() => lblStatus.Text = "Lỗi kết nối: " + ex.Message));
             }

@@ -70,7 +70,6 @@ namespace MeetingClient.Forms
             btnCam.Width = 110; btnMic.Width = 110;
             buttons.Controls.Add(btnCam);
             buttons.Controls.Add(btnMic);
-            left.Controls.Add(buttons);
 
             // Nút Kick
             btnKick.Dock = DockStyle.Top;
