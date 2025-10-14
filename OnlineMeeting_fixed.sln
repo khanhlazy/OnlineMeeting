@@ -1,0 +1,43 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "OnlineMeeting", "OnlineMeeting", "{07ACB9CE-7F4A-F0CE-56AE-B6B8A16129B8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MeetingClient", "OnlineMeeting\MeetingClient\MeetingClient.csproj", "{3D6817EC-FDC8-5CAB-287F-B4740821A769}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MeetingServer", "OnlineMeeting\MeetingServer\MeetingServer.csproj", "{400C9630-540C-8ED3-C982-C90FCEF0CC96}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MeetingShared", "OnlineMeeting\MeetingShared\MeetingShared.csproj", "{41895A89-D2C7-05AB-91B6-A6EACAE38014}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3D6817EC-FDC8-5CAB-287F-B4740821A769}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D6817EC-FDC8-5CAB-287F-B4740821A769}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D6817EC-FDC8-5CAB-287F-B4740821A769}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D6817EC-FDC8-5CAB-287F-B4740821A769}.Release|Any CPU.Build.0 = Release|Any CPU
+		{400C9630-540C-8ED3-C982-C90FCEF0CC96}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{400C9630-540C-8ED3-C982-C90FCEF0CC96}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{400C9630-540C-8ED3-C982-C90FCEF0CC96}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{400C9630-540C-8ED3-C982-C90FCEF0CC96}.Release|Any CPU.Build.0 = Release|Any CPU
+		{41895A89-D2C7-05AB-91B6-A6EACAE38014}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{41895A89-D2C7-05AB-91B6-A6EACAE38014}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{41895A89-D2C7-05AB-91B6-A6EACAE38014}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{41895A89-D2C7-05AB-91B6-A6EACAE38014}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{3D6817EC-FDC8-5CAB-287F-B4740821A769} = {07ACB9CE-7F4A-F0CE-56AE-B6B8A16129B8}
+		{400C9630-540C-8ED3-C982-C90FCEF0CC96} = {07ACB9CE-7F4A-F0CE-56AE-B6B8A16129B8}
+		{41895A89-D2C7-05AB-91B6-A6EACAE38014} = {07ACB9CE-7F4A-F0CE-56AE-B6B8A16129B8}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {ABEB587C-8D7C-4355-BC67-E5D4741C369C}
+	EndGlobalSection
+EndGlobal
