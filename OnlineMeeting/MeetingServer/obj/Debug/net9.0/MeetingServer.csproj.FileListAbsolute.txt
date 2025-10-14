@@ -70,3 +70,4 @@ C:\Users\khanh\Downloads\OnlineMeeting_fixed\OnlineMeeting\MeetingServer\obj\Deb
 C:\Users\khanh\Downloads\OnlineMeeting_fixed\OnlineMeeting\MeetingServer\obj\Debug\net9.0\MeetingServer.pdb
 C:\Users\khanh\Downloads\OnlineMeeting_fixed\OnlineMeeting\MeetingServer\obj\Debug\net9.0\MeetingServer.genruntimeconfig.cache
 C:\Users\khanh\Downloads\OnlineMeeting_fixed\OnlineMeeting\MeetingServer\obj\Debug\net9.0\ref\MeetingServer.dll
+C:\Users\khanh\Downloads\OnlineMeeting_fixed\OnlineMeeting\MeetingServer\obj\Debug\net9.0\MeetingServer.sourcelink.json

@@ -2,7 +2,9 @@ using System;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
+using System.Collections.Generic;
 using MeetingClient.Net;
 using MeetingShared;
 
@@ -19,16 +21,50 @@ namespace MeetingClient.Forms
         private readonly string _roomId;
         private readonly bool _isHost;
 
-        private RichTextBox rtbChat = new(){ Dock=DockStyle.Fill, ReadOnly=true };
-        private TextBox txtChat = new(){ Dock=DockStyle.Bottom };
-        private Button btnSend = new(){ Text="Gửi", Dock=DockStyle.Bottom };
-        private ListBox lstUsers = new(){ Dock=DockStyle.Right, Width=180 };
-        private Button btnKick = new(){ Text="Kick", Dock=DockStyle.Right, Enabled=false };
-        private Button btnCam = new(){ Text="Camera: Tắt", Dock=DockStyle.Top };
-        private Button btnMic = new(){ Text="Mic: Tắt", Dock=DockStyle.Top };
-        private PictureBox picLocal = new(){ Dock=DockStyle.Top, Height=180, BorderStyle=BorderStyle.FixedSingle, SizeMode=PictureBoxSizeMode.Zoom };
-        private FlowLayoutPanel videoPanel = new(){ Dock=DockStyle.Fill, AutoScroll=true };
+        // ========== UI thành phần ==========
+        private readonly ToolStrip _toolbar = new()
+        {
+            GripStyle = ToolStripGripStyle.Hidden,
+            RenderMode = ToolStripRenderMode.System
+        };
+        private readonly ToolStripLabel _lblRoom = new();
+        private readonly ToolStripButton _btnCopyRoom = new() { Text = "Sao chép mã", DisplayStyle = ToolStripItemDisplayStyle.Text };
+        private readonly ToolStripSeparator _sep1 = new();
+        private readonly ToolStripButton _btnCam = new() { Text = "Camera: Tắt" };
+        private readonly ToolStripButton _btnMic = new() { Text = "Mic: Tắt" };
+        private readonly ToolStripSeparator _sep2 = new();
+        private readonly ToolStripButton _btnLeave = new() { Text = "Rời phòng" };
 
+        private readonly StatusStrip _status = new();
+        private readonly ToolStripStatusLabel _lblNet = new() { Text = "Sẵn sàng" };
+
+        // Cột trái: Preview + Users
+        private readonly PictureBox _picLocal = new()
+        {
+            Height = 170, Dock = DockStyle.Top, BorderStyle = BorderStyle.FixedSingle, SizeMode = PictureBoxSizeMode.Zoom
+        };
+        private readonly Label _lbLocal = new() { Dock = DockStyle.Top, Height = 18, TextAlign = ContentAlignment.MiddleCenter };
+        private readonly ListBox _lstUsers = new() { Dock = DockStyle.Fill };
+        private readonly Button _btnKick = new() { Text = "Kick (Host)", Dock = DockStyle.Bottom, Height = 32, Enabled = false };
+
+        // Trung tâm: Video grid + Chat
+        private readonly FlowLayoutPanel _videoGrid = new()
+        {
+            Dock = DockStyle.Fill, AutoScroll = true, WrapContents = true, Padding = new Padding(6)
+        };
+
+        private readonly RichTextBox _rtbChat = new()
+        {
+            ReadOnly = true, ScrollBars = RichTextBoxScrollBars.Vertical, Dock = DockStyle.Fill
+        };
+        private readonly TextBox _txtChat = new() { PlaceholderText = "Nhập tin nhắn và Enter...", Dock = DockStyle.Fill, Height = 26 };
+        private readonly Button _btnSend = new() { Text = "Gửi", Dock = DockStyle.Right, Width = 68 };
+
+        // Menu chuột phải trên danh sách user (tiện kick)
+        private readonly ContextMenuStrip _userMenu = new();
+        private readonly ToolStripMenuItem _miKick = new("Kick người này");
+
+        // ========== Thiết bị ==========
         private FilterInfoCollection? _cams;
         private VideoCaptureDevice? _camDev;
         private bool _camOn = false;
@@ -37,6 +73,9 @@ namespace MeetingClient.Forms
         private BufferedWaveProvider? _audioBuffer;
         private WaveOutEvent? _speaker;
         private bool _micOn = false;
+
+        // Multi-video: quản lý tile theo username
+        private readonly Dictionary<string, PictureBox> _remoteTiles = new();
 
         public MeetingForm(ClientNet net, string username, string roomId, bool isHost)
         {
@@ -47,159 +86,225 @@ namespace MeetingClient.Forms
         {
             base.OnLoad(e);
             Text = $"Phòng {_roomId} - Người dùng: {_username}{(_isHost ? " (Host)" : "")}";
-            Width = 1100; Height = 720;
+            Width = 1280; Height = 780;
 
-            // ====== LEFT: Preview + Buttons + Kick + Users ======
+            // ===== Toolbar =====
+            _lblRoom.Text = $"Phòng: {_roomId}";
+            _toolbar.Items.AddRange(new ToolStripItem[] { _lblRoom, _btnCopyRoom, _sep1, _btnCam, _btnMic, _sep2, _btnLeave });
+            Controls.Add(_toolbar);
+
+            // ===== Status bar =====
+            _status.Items.Add(_lblNet);
+            _status.Dock = DockStyle.Bottom;
+            Controls.Add(_status);
+
+            // ===== Khối trái: preview + users ====
             var left = new Panel { Dock = DockStyle.Left, Width = 260, Padding = new Padding(8) };
+            _lbLocal.Text = $"({_username}) Video của bạn";
+            _btnKick.Enabled = _isHost;
 
-            // Preview local
-            picLocal.Height = 160;
-            picLocal.Dock = DockStyle.Top;
-            left.Controls.Add(picLocal);
-
-            // Hàng nút Cam/Mic
-            var buttons = new FlowLayoutPanel
-            {
-                Dock = DockStyle.Top,
-                Height = 40,
-                FlowDirection = FlowDirection.LeftToRight,
-                WrapContents = false,
-                Padding = new Padding(0),
-                Margin = new Padding(0)
-            };
-            btnCam.Width = 110; btnMic.Width = 110;
-            buttons.Controls.Add(btnCam);
-            buttons.Controls.Add(btnMic);
-
-            // Nút Kick
-            btnKick.Dock = DockStyle.Top;
-            btnKick.Enabled = _isHost;
-            left.Controls.Add(btnKick);
-
-            // Danh sách người dùng
-            lstUsers.Dock = DockStyle.Fill;
-            left.Controls.Add(lstUsers);
-
-            // ====== CENTER: Video panel + Chat ======
-            var chatPanel = new Panel { Dock = DockStyle.Bottom, Height = 150, Padding = new Padding(8, 4, 8, 8) };
-            txtChat.Dock = DockStyle.Bottom;
-            btnSend.Dock = DockStyle.Bottom;
-            chatPanel.Controls.Add(btnSend);
-            chatPanel.Controls.Add(txtChat);
-
-            rtbChat.Dock = DockStyle.Bottom;
-            rtbChat.Height = 110;
-            chatPanel.Controls.Add(rtbChat);
-
-            var center = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8) };
-            videoPanel.Dock = DockStyle.Fill;
-            center.Controls.Add(videoPanel);
-            center.Controls.Add(chatPanel);
-
-            Controls.Add(center);
+            left.Controls.Add(_btnKick);
+            left.Controls.Add(_lstUsers);
+            left.Controls.Add(_lbLocal);
+            left.Controls.Add(_picLocal);
             Controls.Add(left);
 
-            // ====== Events ======
-            btnSend.Click += async (_, __) =>
+            // ===== Khối giữa: videos + chat (SplitContainer) =====
+            var split = new SplitContainer
             {
-                if (string.IsNullOrWhiteSpace(txtChat.Text)) return;
-                var msg = $"{_username}: {txtChat.Text}";
-                await _net.SendAsync(MsgType.Chat, Packet.Str(msg));
-                rtbChat.AppendText("(Bạn) " + txtChat.Text + Environment.NewLine);
-                txtChat.Clear();
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                SplitterDistance = 480,
+                FixedPanel = FixedPanel.Panel2
             };
-            txtChat.KeyDown += (s, ev) => { if (ev.KeyCode == Keys.Enter) { btnSend.PerformClick(); ev.SuppressKeyPress = true; } };
 
-            btnCam.Click += async (_, __) =>
+            // Video Grid
+            split.Panel1.Controls.Add(_videoGrid);
+
+            // Chat (TableLayout)
+            var chat = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 2, Padding = new Padding(8)
+            };
+            chat.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            chat.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+            chat.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            chat.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
+            chat.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 10)); // spacing
+
+            chat.Controls.Add(_rtbChat, 0, 0);
+            chat.SetColumnSpan(_rtbChat, 3);
+
+            var sendRow = new Panel { Dock = DockStyle.Fill, Height = 28 };
+            _txtChat.Parent = sendRow;
+            _btnSend.Parent = sendRow;
+            _txtChat.Width = sendRow.Width - _btnSend.Width - 12;
+            _txtChat.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top;
+            _btnSend.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+            _btnSend.Left = sendRow.Width - _btnSend.Width;
+            sendRow.Resize += (_, __) =>
+            {
+                _txtChat.Width = sendRow.Width - _btnSend.Width - 12;
+                _btnSend.Left = sendRow.Width - _btnSend.Width;
+            };
+
+            chat.Controls.Add(sendRow, 0, 1);
+            chat.SetColumnSpan(sendRow, 3);
+
+            split.Panel2.Controls.Add(chat);
+            Controls.Add(split);
+
+            // ===== Context menu danh sách user =====
+            _userMenu.Items.Add(_miKick);
+            _lstUsers.ContextMenuStrip = _userMenu;
+            _miKick.Enabled = _isHost;
+
+            // ===== Sự kiện =====
+            _btnCopyRoom.Click += (_, __) => { try { Clipboard.SetText(_roomId); _lblNet.Text = "Đã sao chép mã phòng"; } catch { } };
+            _btnLeave.Click += (_, __) => Close();
+
+            _btnCam.Click += async (_, __) =>
             {
                 _camOn = !_camOn;
-                btnCam.Text = _camOn ? "Camera: Bật" : "Camera: Tắt";
+                _btnCam.Text = _camOn ? "Camera: Bật" : "Camera: Tắt";
                 await _net.SendAsync(MsgType.ToggleCam, Packet.Str(_camOn ? "ON" : "OFF"));
                 if (_camOn) StartCamera(); else StopCamera();
             };
 
-            btnMic.Click += async (_, __) =>
+            _btnMic.Click += async (_, __) =>
             {
                 _micOn = !_micOn;
-                btnMic.Text = _micOn ? "Mic: Bật" : "Mic: Tắt";
+                _btnMic.Text = _micOn ? "Mic: Bật" : "Mic: Tắt";
                 await _net.SendAsync(MsgType.ToggleMic, Packet.Str(_micOn ? "ON" : "OFF"));
                 if (_micOn) StartMic(); else StopMic();
             };
 
-            btnKick.Click += async (_, __) =>
-            {
-                if (lstUsers.SelectedItem is string u && !u.Contains("(Host)") && !u.StartsWith(_username + " "))
-                    await _net.SendAsync(MsgType.Kick, Packet.Str(u.Split(' ')[0]));
-            };
+            _btnKick.Click += async (_, __) => await KickSelectedAsync();
+            _miKick.Click += async (_, __) => await KickSelectedAsync();
 
+            _btnSend.Click += async (_, __) => await SendChatAsync();
+            _txtChat.KeyDown += async (_, ev) => { if (ev.KeyCode == Keys.Enter) { ev.SuppressKeyPress = true; await SendChatAsync(); } };
+
+            // đăng ký sự kiện mạng
             _net.OnMessage += Net_OnMessage;
+
+            // nhãn
+            _lblNet.Text = "Đã vào phòng.";
         }
 
         protected override async void OnFormClosed(FormClosedEventArgs e)
         {
             base.OnFormClosed(e);
-            await _net.SendAsync(MsgType.Leave, Packet.Str(""));
+            try { await _net.SendAsync(MsgType.Leave, Packet.Str("")); } catch { }
             StopCamera(); StopMic();
         }
 
-        // ==== Mọi cập nhật UI đều qua BeginInvoke ====
+        // ================== Chat ==================
+        private async Task SendChatAsync()
+        {
+            var raw = _txtChat.Text.Trim();
+            if (raw.Length == 0) return;
+
+            // Gửi text thô; server sẽ ghép "<username>: "
+            await _net.SendAsync(MsgType.Chat, Packet.Str(raw));
+
+            _rtbChat.AppendText($"(Bạn) {raw}{Environment.NewLine}");
+            _rtbChat.SelectionStart = _rtbChat.TextLength;
+            _rtbChat.ScrollToCaret();
+
+            _txtChat.Clear();
+        }
+
+        // ================== Kick ==================
+        private async Task KickSelectedAsync()
+        {
+            if (!_isHost) return;
+            if (_lstUsers.SelectedItem is not string line) return;
+            if (line.Contains("(Host)")) { MessageBox.Show("Không thể kick Host."); return; }
+
+            var target = line.Split(' ')[0]; // lấy username trước khoảng trắng đầu
+            var ok = MessageBox.Show($"Kick '{target}' khỏi phòng?", "Xác nhận", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (ok == DialogResult.Yes)
+                await _net.SendAsync(MsgType.Kick, Packet.Str(target));
+        }
+
+        // ============ Nhận dữ liệu từ server (UI -> BeginInvoke) ============
         private void Net_OnMessage(MsgType t, byte[] p)
         {
-            if (!this.IsHandleCreated) return;
+            if (!IsHandleCreated) return;
 
             switch (t)
             {
                 case MsgType.Chat:
                 {
                     var s = Packet.Str(p);
-                    this.BeginInvoke(new Action(() => rtbChat.AppendText(s + "\n")));
+                    BeginInvoke(new Action(() =>
+                    {
+                        _rtbChat.AppendText(s + Environment.NewLine);
+                        _rtbChat.SelectionStart = _rtbChat.TextLength;
+                        _rtbChat.ScrollToCaret();
+                    }));
                     break;
                 }
+
                 case MsgType.Participants:
                 {
                     var s = Packet.Str(p);
-                    this.BeginInvoke(new Action(() =>
+                    BeginInvoke(new Action(() =>
                     {
-                        lstUsers.Items.Clear();
+                        _lstUsers.Items.Clear();
                         foreach (var item in s.Split(';', StringSplitOptions.RemoveEmptyEntries))
                         {
                             var parts = item.Split(':');
                             var name = parts[0];
                             var isHost = parts[1] == "1";
                             var cam = parts[2] == "1"; var mic = parts[3] == "1";
-                            lstUsers.Items.Add(name + (isHost ? " (Host)" : " ")
-                                + $" [Cam:{(cam ? "On" : "Off")} Mic:{(mic ? "On" : "Off")}]");
+                            _lstUsers.Items.Add(name + (isHost ? " (Host)" : " ")
+                                + $"  [Cam:{(cam ? "On" : "Off")}  Mic:{(mic ? "On" : "Off")}]");
+
+                            // tạo sẵn tile video cho từng người
+                            EnsureTile(name);
                         }
                     }));
                     break;
                 }
+
                 case MsgType.Info:
                 {
                     var s = Packet.Str(p);
                     if (s == "KICKED")
-                        this.BeginInvoke(new Action(() =>
+                        BeginInvoke(new Action(() =>
                         {
                             MessageBox.Show("Bạn đã bị host đưa ra khỏi phòng.");
                             Close();
                         }));
                     break;
                 }
+
                 case MsgType.Video:
                 {
+                    // Payload: "<username>|<jpeg bytes>"
+                    if (!TrySplitUserPayload(p, out var user, out var bytes)) break;
                     try
                     {
-                        using var ms = new MemoryStream(p);
+                        using var ms = new MemoryStream(bytes);
                         var img = Image.FromStream(ms);
-                        this.BeginInvoke(new Action(() => ShowRemoteFrame(img)));
+                        BeginInvoke(new Action(() => ShowRemoteFrame(user, img)));
                     }
                     catch { }
                     break;
                 }
+
                 case MsgType.Audio:
                 {
+                    // Audio trộn chung (đơn giản)
                     if (_audioBuffer == null)
                     {
-                        _audioBuffer = new BufferedWaveProvider(new WaveFormat(16000,1));
+                        _audioBuffer = new BufferedWaveProvider(new WaveFormat(16000, 1))
+                        {
+                            DiscardOnBufferOverflow = true,
+                            BufferDuration = TimeSpan.FromSeconds(2)
+                        };
                         _speaker = new WaveOutEvent();
                         _speaker.Init(_audioBuffer);
                         _speaker.Play();
@@ -210,72 +315,136 @@ namespace MeetingClient.Forms
             }
         }
 
-        private void ShowRemoteFrame(Image img)
+        // ============ Video grid (multi user) ============
+        private void ShowRemoteFrame(string user, Image img)
         {
-            if (videoPanel.Controls.Count == 0)
-            {
-                videoPanel.Controls.Add(new PictureBox{
-                    Width=320, Height=240, SizeMode=PictureBoxSizeMode.Zoom, BorderStyle=BorderStyle.FixedSingle, Image=img
-                });
-            }
-            else
-            {
-                var pb = (PictureBox)videoPanel.Controls[0];
-                var old = pb.Image; pb.Image = (Image)img.Clone(); old?.Dispose();
-            }
+            var pb = EnsureTile(user);
+            var old = pb.Image;
+            pb.Image = (Image)img.Clone();
+            old?.Dispose();
         }
 
+        private PictureBox EnsureTile(string user)
+        {
+            if (_remoteTiles.TryGetValue(user, out var pb))
+                return pb;
+
+            // ô video + caption tên
+            pb = new PictureBox
+            {
+                Width = 420, Height = 300,
+                BorderStyle = BorderStyle.FixedSingle,
+                SizeMode = PictureBoxSizeMode.Zoom
+            };
+            var cap = new Label
+            {
+                Text = user, Dock = DockStyle.Bottom, Height = 18,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            var cell = new Panel
+            {
+                Width = pb.Width + 6, Height = pb.Height + cap.Height + 6,
+                Padding = new Padding(3)
+            };
+            pb.Dock = DockStyle.Top;
+            cell.Controls.Add(cap);
+            cell.Controls.Add(pb);
+            _videoGrid.Controls.Add(cell);
+
+            _remoteTiles[user] = pb;
+            return pb;
+        }
+
+        // ============ Encode/Decode "<user>|bytes" ============
+        private static bool TrySplitUserPayload(byte[] payload, out string user, out byte[] rest)
+        {
+            user = string.Empty; rest = Array.Empty<byte>();
+            int sep = Array.IndexOf(payload, (byte)'|');
+            if (sep <= 0) return false;
+            user = Encoding.UTF8.GetString(payload, 0, sep);
+            var len = payload.Length - (sep + 1);
+            rest = new byte[len];
+            Buffer.BlockCopy(payload, sep + 1, rest, 0, len);
+            return true;
+        }
+
+        // ============ Camera ============
         private void StartCamera()
         {
             try
             {
                 _cams = new FilterInfoCollection(FilterCategory.VideoInputDevice);
-                if (_cams.Count == 0) { MessageBox.Show("Không tìm thấy camera"); _camOn=false; btnCam.Text="Camera: Tắt"; return; }
+                if (_cams == null || _cams.Count == 0)
+                {
+                    MessageBox.Show("Không tìm thấy camera");
+                    _camOn = false; _btnCam.Text = "Camera: Tắt"; return;
+                }
                 _camDev = new VideoCaptureDevice(_cams[0].MonikerString);
                 _camDev.NewFrame += async (s, e) =>
                 {
                     if (!_camOn) return;
-                    using var bmp = (Bitmap)e.Frame.Clone();
-                    picLocal.Image?.Dispose();
-                    picLocal.Image = (Bitmap)bmp.Clone();
+
+                    using var bmpFull = (Bitmap)e.Frame.Clone();
+                    using var bmp = new Bitmap(bmpFull, new Size(640, 360)); // giảm tải cho LAN
+                    _picLocal.Image?.Dispose();
+                    _picLocal.Image = (Bitmap)bmp.Clone();
+
                     using var ms = new MemoryStream();
-                    bmp.Save(ms, System.Drawing.Imaging.ImageFormat.Jpeg);
-                    var data = ms.ToArray();
-                    if (data.Length < 200_000)
-                        await _net.SendAsync(MsgType.Video, data);
+                    var enc = System.Drawing.Imaging.ImageCodecInfo.GetImageEncoders()
+                              .First(x => x.FormatID == System.Drawing.Imaging.ImageFormat.Jpeg.Guid);
+                    var ep = new System.Drawing.Imaging.EncoderParameters(1);
+                    ep.Param[0] = new System.Drawing.Imaging.EncoderParameter(
+                        System.Drawing.Imaging.Encoder.Quality, 60L);
+                    bmp.Save(ms, enc, ep);
+
+                    var jpeg = ms.ToArray();
+                    if (jpeg.Length < 250_000) // ~250KB/gói
+                    {
+                        var header = Encoding.UTF8.GetBytes(_username + "|");
+                        var payload = new byte[header.Length + jpeg.Length];
+                        Buffer.BlockCopy(header, 0, payload, 0, header.Length);
+                        Buffer.BlockCopy(jpeg, 0, payload, header.Length, jpeg.Length);
+                        await _net.SendAsync(MsgType.Video, payload);
+                    }
                 };
                 _camDev.Start();
             }
-            catch (Exception ex) { MessageBox.Show("Lỗi camera: "+ex.Message); }
+            catch (Exception ex) { MessageBox.Show("Lỗi camera: " + ex.Message); }
         }
 
         private void StopCamera()
         {
-            try{ _camDev?.SignalToStop(); _camDev?.WaitForStop(); } catch {}
+            try { _camDev?.SignalToStop(); _camDev?.WaitForStop(); } catch { }
             _camDev = null;
-            picLocal.Image = null;
+            _picLocal.Image = null;
         }
 
+        // ============ Mic ============
         private void StartMic()
         {
             try
             {
-                _mic = new WaveInEvent(){ WaveFormat = new WaveFormat(16000,1) };
-                _mic.DataAvailable += async (s,e)=>{
+                _mic = new WaveInEvent
+                {
+                    WaveFormat = new WaveFormat(16000, 1),
+                    BufferMilliseconds = 40,
+                    NumberOfBuffers = 4
+                };
+                _mic.DataAvailable += async (s, e) =>
+                {
                     if (!_micOn) return;
-                    var pcm = new byte[e.BytesRecorded];
-                    Buffer.BlockCopy(e.Buffer, 0, pcm, 0, e.BytesRecorded);
-                    await _net.SendAsync(MsgType.Audio, pcm);
+                    var pcm = e.Buffer.Take(e.BytesRecorded).ToArray();
+                    await _net.SendAsync(MsgType.Audio, pcm); // trộn chung (đơn giản)
                 };
                 _mic.StartRecording();
             }
-            catch (Exception ex) { MessageBox.Show("Lỗi mic: "+ex.Message); }
+            catch (Exception ex) { MessageBox.Show("Lỗi mic: " + ex.Message); }
         }
 
         private void StopMic()
         {
-            try{ _mic?.StopRecording(); _mic?.Dispose(); } catch {}
-            _mic=null;
+            try { _mic?.StopRecording(); _mic?.Dispose(); } catch { }
+            _mic = null;
         }
     }
 }

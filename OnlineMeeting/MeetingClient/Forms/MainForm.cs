@@ -10,10 +10,22 @@ namespace MeetingClient.Forms
         private readonly ClientNet _net;
         private readonly string _username;
 
-        private TextBox txtRoom = new();
-        private Button btnCreate = new() { Text = "Tạo phòng" };
-        private Button btnJoin = new() { Text = "Tham gia" };
-        private Label  lblInfo  = new() { AutoSize = true };
+        // ====== UI ======
+        private readonly ToolStrip _toolbar = new()
+        {
+            GripStyle = ToolStripGripStyle.Hidden,
+            RenderMode = ToolStripRenderMode.System
+        };
+        private readonly ToolStripLabel _lblHello = new();
+        private readonly ToolStripSeparator _sep1 = new();
+        private readonly ToolStripButton _btnCreate = new() { Text = "Tạo phòng", DisplayStyle = ToolStripItemDisplayStyle.Text };
+        private readonly ToolStripButton _btnJoin = new()   { Text = "Tham gia",  DisplayStyle = ToolStripItemDisplayStyle.Text };
+        private readonly ToolStripButton _btnCopy = new()   { Text = "Sao chép mã", DisplayStyle = ToolStripItemDisplayStyle.Text };
+
+        private readonly StatusStrip _status = new();
+        private readonly ToolStripStatusLabel _lblStatus = new() { Text = "Sẵn sàng" };
+
+        private readonly TextBox txtRoom = new() { PlaceholderText = "Nhập mã phòng (ví dụ R123456)..." };
 
         public MainForm(ClientNet net, string username)
         {
@@ -25,49 +37,133 @@ namespace MeetingClient.Forms
         {
             base.OnLoad(e);
             Text = $"Xin chào {_username} - Lobby";
-            Width = 420; Height = 200;
+            Width = 520; Height = 240;
+            StartPosition = FormStartPosition.CenterScreen;
 
-            var tl = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3, Padding = new Padding(10) };
-            tl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
-            tl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
-            tl.Controls.Add(btnCreate, 0, 0); tl.Controls.Add(new Label(), 1, 0);
-            tl.Controls.Add(new Label { Text = "Mã phòng" }, 0, 1); tl.Controls.Add(txtRoom, 1, 1);
-            tl.Controls.Add(btnJoin, 0, 2); tl.Controls.Add(lblInfo, 1, 2);
-            Controls.Add(tl);
+            // ===== Toolbar =====
+            _lblHello.Text = $"Người dùng: {_username}";
+            _toolbar.Items.Add(_lblHello);
+            _toolbar.Items.Add(_sep1);
+            _toolbar.Items.Add(_btnCreate);
+            _toolbar.Items.Add(_btnJoin);
+            _toolbar.Items.Add(_btnCopy);
+            Controls.Add(_toolbar);
 
-            // Đăng ký handler duy nhất
+            // ===== Content =====
+            var panel = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 2,
+                Padding = new Padding(12)
+            };
+            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
+            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70));
+
+            panel.Controls.Add(new Label { Text = "Mã phòng", AutoSize = true, TextAlign = System.Drawing.ContentAlignment.MiddleLeft, Dock = DockStyle.Fill }, 0, 0);
+            panel.Controls.Add(txtRoom, 1, 0);
+
+            Controls.Add(panel);
+
+            // ===== Status bar =====
+            _status.Items.Add(_lblStatus);
+            _status.Dock = DockStyle.Bottom;
+            Controls.Add(_status);
+
+            // ===== Events =====
+            // Đăng ký handler — chỉ nhận Info cần cho lobby
             _net.OnMessage += Net_OnMessage;
 
-            btnCreate.Click += async (_, __) => await _net.SendAsync(MsgType.CreateRoom, Packet.Str(""));
-            btnJoin .Click += async (_, __) => await _net.SendAsync(MsgType.JoinRoom , Packet.Str(txtRoom.Text));
+            _btnCreate.Click += async (_, __) => await CreateRoomAsync();
+            _btnJoin  .Click += async (_, __) => await JoinRoomAsync();
+            _btnCopy  .Click += (_, __)      => { try { if (!string.IsNullOrWhiteSpace(txtRoom.Text)) Clipboard.SetText(txtRoom.Text.Trim()); _lblStatus.Text = "Đã sao chép mã phòng."; } catch { } };
+
+            txtRoom.KeyDown += async (_, ev) =>
+            {
+                if (ev.KeyCode == Keys.Enter)
+                {
+                    ev.SuppressKeyPress = true;
+                    await JoinRoomAsync();
+                }
+            };
         }
 
-        // CHỈ CÒN MỘT Net_OnMessage — luôn đưa cập nhật về UI thread
+        // ===== Actions =====
+        private async System.Threading.Tasks.Task CreateRoomAsync()
+        {
+            ToggleBusy(true, "Đang tạo phòng...");
+            try
+            {
+                await _net.SendAsync(MsgType.CreateRoom, Packet.Str(""));
+            }
+            catch (Exception ex)
+            {
+                SafeUi(() =>
+                {
+                    _lblStatus.Text = "Lỗi: " + ex.Message;
+                    ToggleBusy(false);
+                });
+            }
+        }
+
+        private async System.Threading.Tasks.Task JoinRoomAsync()
+        {
+            var code = txtRoom.Text.Trim();
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                _lblStatus.Text = "Vui lòng nhập mã phòng.";
+                return;
+            }
+            ToggleBusy(true, "Đang tham gia phòng...");
+            try
+            {
+                await _net.SendAsync(MsgType.JoinRoom, Packet.Str(code));
+            }
+            catch (Exception ex)
+            {
+                SafeUi(() =>
+                {
+                    _lblStatus.Text = "Lỗi: " + ex.Message;
+                    ToggleBusy(false);
+                });
+            }
+        }
+
+        // ===== Network events (chỉ xử lý Info cần thiết) =====
         private void Net_OnMessage(MsgType t, byte[] p)
         {
             if (t != MsgType.Info) return;
             var s = Packet.Str(p);
 
-            if (this.IsHandleCreated)
-                this.BeginInvoke(new Action(() =>
+            SafeUi(() =>
+            {
+                if (s.StartsWith("ROOM_CREATED|"))
                 {
-                    if (s.StartsWith("ROOM_CREATED|"))
-                    {
-                        var id = s.Split('|')[1];
-                        lblInfo.Text = $"Phòng tạo: {id}. Sao chép mã để mời người khác.";
-                        OpenMeeting(id, isHost: true);
-                    }
-                    else if (s.StartsWith("JOIN_OK|"))
-                    {
-                        var parts = s.Split('|');
-                        var id = parts[1];
-                        OpenMeeting(id, isHost: false);
-                    }
-                    else if (s == "ROOM_NOT_FOUND")
-                    {
-                        lblInfo.Text = "Không tìm thấy phòng.";
-                    }
-                }));
+                    var id = s.Split('|')[1];
+                    txtRoom.Text = id;
+                    _lblStatus.Text = $"Phòng tạo: {id}. Bạn có thể sao chép mã để mời người khác.";
+                    ToggleBusy(false);
+                    OpenMeeting(id, isHost: true);
+                }
+                else if (s.StartsWith("JOIN_OK|"))
+                {
+                    var parts = s.Split('|');
+                    var id = parts[1];
+                    _lblStatus.Text = $"Tham gia phòng {id} thành công.";
+                    ToggleBusy(false);
+                    OpenMeeting(id, isHost: false);
+                }
+                else if (s == "ROOM_NOT_FOUND")
+                {
+                    _lblStatus.Text = "Không tìm thấy phòng.";
+                    ToggleBusy(false);
+                }
+                else if (s == "NEED_LOGIN")
+                {
+                    _lblStatus.Text = "Cần đăng nhập trước.";
+                    ToggleBusy(false);
+                }
+            });
         }
 
         private void OpenMeeting(string roomId, bool isHost)
@@ -75,7 +171,33 @@ namespace MeetingClient.Forms
             var frm = new MeetingForm(_net, _username, roomId, isHost);
             frm.Show();
             Hide();
-            frm.FormClosed += (_, __) => { Show(); };
+
+            // Khi phòng đóng, quay về lobby
+            frm.FormClosed += (_, __) =>
+            {
+                Show();
+                Activate();
+            };
+        }
+
+        // ===== Helpers =====
+        private void ToggleBusy(bool busy, string? status = null)
+        {
+            _btnCreate.Enabled = _btnJoin.Enabled = !busy;
+            if (status != null) _lblStatus.Text = status;
+        }
+
+        // Cập nhật UI an toàn từ mọi thread
+        private void SafeUi(Action ui)
+        {
+            try
+            {
+                if (IsDisposed) return;
+                if (!IsHandleCreated) { var _ = Handle; }
+                if (InvokeRequired) BeginInvoke(ui);
+                else ui();
+            }
+            catch { /* ignore UI race */ }
         }
     }
 }

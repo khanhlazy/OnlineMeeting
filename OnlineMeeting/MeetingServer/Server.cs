@@ -111,6 +111,22 @@ public class Server
 
             // Gửi chat/video/audio cho các thành viên khác
             case MsgType.Chat:
+{
+    if (c.RoomId is null) break;
+    var room = _rooms.Get(c.RoomId);
+    if (room is null) break;
+
+    var text = $"{c.Username}: {Packet.Str(payload)}";
+    var pkt = Packet.Make(MsgType.Chat, Packet.Str(text));
+
+    foreach (var m in room.Members)
+    {
+        if (m == c) continue; // không echo cho chính người gửi
+        try { await m.Stream.WriteAsync(pkt); } catch { }
+    }
+    break;
+}
+
             case MsgType.Video:
             case MsgType.Audio:
             {

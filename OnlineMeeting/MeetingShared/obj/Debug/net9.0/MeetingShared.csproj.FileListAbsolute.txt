@@ -9,3 +9,4 @@ C:\Users\khanh\Downloads\OnlineMeeting_fixed\OnlineMeeting\MeetingShared\obj\Deb
 C:\Users\khanh\Downloads\OnlineMeeting_fixed\OnlineMeeting\MeetingShared\obj\Debug\net9.0\refint\MeetingShared.dll
 C:\Users\khanh\Downloads\OnlineMeeting_fixed\OnlineMeeting\MeetingShared\obj\Debug\net9.0\MeetingShared.pdb
 C:\Users\khanh\Downloads\OnlineMeeting_fixed\OnlineMeeting\MeetingShared\obj\Debug\net9.0\ref\MeetingShared.dll
+C:\Users\khanh\Downloads\OnlineMeeting_fixed\OnlineMeeting\MeetingShared\obj\Debug\net9.0\MeetingShared.sourcelink.json
