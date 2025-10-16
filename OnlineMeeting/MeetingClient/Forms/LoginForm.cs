@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using MeetingClient.Net;
 using MeetingShared;
+using MeetingClient.UI;
 
 namespace MeetingClient.Forms
 {
@@ -30,11 +31,12 @@ namespace MeetingClient.Forms
             CheckForIllegalCrossThreadCalls = false;
         }
 
+        // Khởi tạo UI đăng nhập: nhập host/port, tài khoản/mật khẩu và xử lý đăng nhập/đăng ký
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
             Text = "Đăng nhập - OnlineMeeting";
-            Width = 480; Height = 320;
+            Width = 520; Height = 360;
             StartPosition = FormStartPosition.CenterScreen;
 
             // ===== Layout =====
@@ -43,7 +45,7 @@ namespace MeetingClient.Forms
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
                 RowCount = 8,
-                Padding = new Padding(12),
+                Padding = new Padding(16),
             };
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 35));
             root.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 65));
@@ -90,6 +92,11 @@ namespace MeetingClient.Forms
 
             Controls.Add(root);
 
+            // Apply theme and styles
+            Theme.Apply(this);
+            Theme.StylePrimary(btnLogin);
+            Theme.StyleSecondary(btnReg);
+
             // Tooltips
             tip.SetToolTip(txtHost, "Địa chỉ máy chủ trong LAN (IP hoặc hostname).");
             tip.SetToolTip(numPort, "Cổng TCP của server (mặc định 5555).");
@@ -101,7 +108,7 @@ namespace MeetingClient.Forms
             txtUser.Focus();
             chkShow.CheckedChanged += (_, __) => txtPass.UseSystemPasswordChar = !chkShow.Checked;
 
-            // Events
+            // Sự kiện click/enter để gửi yêu cầu lên server (MsgType.Login/MsgType.Register)
             btnLogin.Click += async (_, __) => await DoAuthAsync(false);
             btnReg.Click   += async (_, __) => await DoAuthAsync(true);
             txtPass.KeyDown += async (_, ev) =>
@@ -123,6 +130,7 @@ namespace MeetingClient.Forms
             if (status != null) lblStatus.Text = status;
         }
 
+        // Kiểm tra hợp lệ dữ liệu nhập trước khi gửi lên server
         private string? ValidateInputs()
         {
             var host = txtHost.Text.Trim();
@@ -137,6 +145,7 @@ namespace MeetingClient.Forms
             return null;
         }
 
+        // Đảm bảo đã kết nối TCP đến server và đăng ký listener sự kiện mạng 1 lần
         private async Task EnsureConnectedAsync()
         {
             if (!_net.Tcp.Connected)
@@ -151,6 +160,7 @@ namespace MeetingClient.Forms
             }
         }
 
+        // Gửi yêu cầu đăng ký/đăng nhập theo định dạng "user|pass"
         private async Task DoAuthAsync(bool isRegister)
         {
             var err = ValidateInputs();
@@ -181,6 +191,7 @@ namespace MeetingClient.Forms
             }
         }
 
+        // Lắng nghe phản hồi từ server: REGISTER_OK/FAIL, LOGIN_OK/FAIL, NEED_LOGIN
         private void Net_OnMessage(MsgType t, byte[] p)
         {
             if (t != MsgType.Info) return;
@@ -229,6 +240,7 @@ namespace MeetingClient.Forms
             });
         }
 
+        // Mở màn hình Lobby sau khi đăng nhập thành công
         private void OpenMain()
         {
             var main = new MainForm(_net, txtUser.Text.Trim());
@@ -238,6 +250,7 @@ namespace MeetingClient.Forms
         }
 
         // Cập nhật UI an toàn từ bất kỳ thread nào
+        // Helper: cập nhật UI an toàn từ thread nhận mạng
         private void SafeUi(Action action)
         {
             try

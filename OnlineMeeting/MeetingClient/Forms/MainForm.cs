@@ -2,6 +2,7 @@ using System;
 using System.Windows.Forms;
 using MeetingClient.Net;
 using MeetingShared;
+using MeetingClient.UI;
 
 namespace MeetingClient.Forms
 {
@@ -33,44 +34,99 @@ namespace MeetingClient.Forms
             _username = username;
         }
 
+        // Màn hình Lobby: tạo phòng, nhập mã tham gia phòng; theo dõi thông báo từ server
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
             Text = $"Xin chào {_username} - Lobby";
-            Width = 520; Height = 240;
+            Width = 640; Height = 360;
             StartPosition = FormStartPosition.CenterScreen;
 
             // ===== Toolbar =====
             _lblHello.Text = $"Người dùng: {_username}";
             _toolbar.Items.Add(_lblHello);
             _toolbar.Items.Add(_sep1);
-            _toolbar.Items.Add(_btnCreate);
-            _toolbar.Items.Add(_btnJoin);
-            _toolbar.Items.Add(_btnCopy);
             Controls.Add(_toolbar);
 
             // ===== Content =====
-            var panel = new TableLayoutPanel
+            var root = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 2,
-                Padding = new Padding(12)
+                ColumnCount = 1,
+                RowCount = 4,
+                Padding = new Padding(16)
             };
-            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 30));
-            panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 70));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 48)); // title
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 28)); // subtitle
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 64)); // join row
+            root.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // create button area
 
-            panel.Controls.Add(new Label { Text = "Mã phòng", AutoSize = true, TextAlign = System.Drawing.ContentAlignment.MiddleLeft, Dock = DockStyle.Fill }, 0, 0);
-            panel.Controls.Add(txtRoom, 1, 0);
+            var title = new Label
+            {
+                Text = "Online Meeting",
+                Dock = DockStyle.Fill,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+                Font = new System.Drawing.Font("Segoe UI", 16, System.Drawing.FontStyle.Bold)
+            };
+            var subtitle = new Label
+            {
+                Text = "Nhập mã để tham gia hoặc tạo phòng mới",
+                Dock = DockStyle.Fill,
+                ForeColor = System.Drawing.Color.DimGray,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft
+            };
 
-            Controls.Add(panel);
+            var joinRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 4
+            };
+            joinRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90)); // label
+            joinRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100)); // textbox
+            joinRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110)); // join
+            joinRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110)); // copy
+
+            var lblRoom = new Label { Text = "Mã phòng", Dock = DockStyle.Fill, TextAlign = System.Drawing.ContentAlignment.MiddleLeft };
+            txtRoom.Dock = DockStyle.Fill;
+
+            _btnJoin.DisplayStyle = ToolStripItemDisplayStyle.Text;
+            _btnCopy.DisplayStyle = ToolStripItemDisplayStyle.Text;
+
+            var btnJoin = new Button { Text = "Tham gia", Dock = DockStyle.Fill };
+            var btnCopy = new Button { Text = "Sao chép mã", Dock = DockStyle.Fill };
+
+            btnJoin.Click += async (_, __) => await JoinRoomAsync();
+            btnCopy.Click += (_, __) => { try { if (!string.IsNullOrWhiteSpace(txtRoom.Text)) Clipboard.SetText(txtRoom.Text.Trim()); _lblStatus.Text = "Đã sao chép mã phòng."; } catch { } };
+
+            joinRow.Controls.Add(lblRoom, 0, 0);
+            joinRow.Controls.Add(txtRoom, 1, 0);
+            joinRow.Controls.Add(btnJoin, 2, 0);
+            joinRow.Controls.Add(btnCopy, 3, 0);
+
+            var createPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(0, 12, 0, 0) };
+            var btnCreateBig = new Button { Text = "Tạo phòng mới", Dock = DockStyle.Top, Height = 44 };
+            btnCreateBig.Click += async (_, __) => await CreateRoomAsync();
+            createPanel.Controls.Add(btnCreateBig);
+
+            root.Controls.Add(title, 0, 0);
+            root.Controls.Add(subtitle, 0, 1);
+            root.Controls.Add(joinRow, 0, 2);
+            root.Controls.Add(createPanel, 0, 3);
+
+            Controls.Add(root);
 
             // ===== Status bar =====
             _status.Items.Add(_lblStatus);
             _status.Dock = DockStyle.Bottom;
             Controls.Add(_status);
 
-            // ===== Events =====
+            // Theme
+            Theme.Apply(this);
+            Theme.StylePrimary(btnCreateBig);
+            Theme.StyleSecondary(btnJoin);
+            Theme.StyleSecondary(btnCopy);
+
+            // ===== Events ===== (gửi yêu cầu tạo/tham gia phòng; lắng nghe Info từ server)
             // Đăng ký handler — chỉ nhận Info cần cho lobby
             _net.OnMessage += Net_OnMessage;
 
@@ -86,9 +142,18 @@ namespace MeetingClient.Forms
                     await JoinRoomAsync();
                 }
             };
+
+            // UX: enable/disable join/copy by input
+            txtRoom.TextChanged += (_, __) =>
+            {
+                var has = !string.IsNullOrWhiteSpace(txtRoom.Text);
+                btnJoin.Enabled = has;
+                btnCopy.Enabled = has;
+            };
         }
 
         // ===== Actions =====
+        // Gửi yêu cầu tạo phòng (MsgType.CreateRoom). Server trả "ROOM_CREATED|<id>"
         private async System.Threading.Tasks.Task CreateRoomAsync()
         {
             ToggleBusy(true, "Đang tạo phòng...");
@@ -106,6 +171,7 @@ namespace MeetingClient.Forms
             }
         }
 
+        // Gửi yêu cầu tham gia phòng (MsgType.JoinRoom) với mã phòng
         private async System.Threading.Tasks.Task JoinRoomAsync()
         {
             var code = txtRoom.Text.Trim();
@@ -130,6 +196,7 @@ namespace MeetingClient.Forms
         }
 
         // ===== Network events (chỉ xử lý Info cần thiết) =====
+        // Xử lý phản hồi: ROOM_CREATED, JOIN_OK, ROOM_NOT_FOUND, NEED_LOGIN
         private void Net_OnMessage(MsgType t, byte[] p)
         {
             if (t != MsgType.Info) return;

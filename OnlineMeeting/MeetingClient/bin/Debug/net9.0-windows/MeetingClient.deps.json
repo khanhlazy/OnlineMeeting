@@ -8,43 +8,14 @@
     ".NETCoreApp,Version=v9.0": {
       "MeetingClient/1.0.0": {
         "dependencies": {
-          "AForge.Video": "2.2.5",
-          "AForge.Video.DirectShow": "2.2.5",
           "MeetingShared": "1.0.0",
-          "NAudio": "2.2.1"
+          "NAudio": "2.2.1",
+          "OpenCvSharp4": "4.11.0.20250507",
+          "OpenCvSharp4.Extensions": "4.11.0.20250507",
+          "OpenCvSharp4.runtime.win": "4.11.0.20250507"
         },
         "runtime": {
           "MeetingClient.dll": {}
-        }
-      },
-      "AForge/2.2.5": {
-        "runtime": {
-          "lib/AForge.dll": {
-            "assemblyVersion": "2.2.5.0",
-            "fileVersion": "2.2.5.0"
-          }
-        }
-      },
-      "AForge.Video/2.2.5": {
-        "dependencies": {
-          "AForge": "2.2.5"
-        },
-        "runtime": {
-          "lib/AForge.Video.dll": {
-            "assemblyVersion": "2.2.5.0",
-            "fileVersion": "2.2.5.0"
-          }
-        }
-      },
-      "AForge.Video.DirectShow/2.2.5": {
-        "dependencies": {
-          "AForge.Video": "2.2.5"
-        },
-        "runtime": {
-          "lib/AForge.Video.DirectShow.dll": {
-            "assemblyVersion": "2.2.5.0",
-            "fileVersion": "2.2.5.0"
-          }
         }
       },
       "Microsoft.NETCore.Platforms/3.1.0": {},
@@ -54,6 +25,7 @@
           "System.Security.Principal.Windows": "4.7.0"
         }
       },
+      "Microsoft.Win32.SystemEvents/8.0.0": {},
       "NAudio/2.2.1": {
         "dependencies": {
           "NAudio.Asio": "2.2.1",
@@ -135,6 +107,59 @@
           }
         }
       },
+      "OpenCvSharp4/4.11.0.20250507": {
+        "dependencies": {
+          "System.Memory": "4.6.3"
+        },
+        "runtime": {
+          "lib/net6.0/OpenCvSharp.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "OpenCvSharp4.Extensions/4.11.0.20250507": {
+        "dependencies": {
+          "OpenCvSharp4": "4.11.0.20250507",
+          "System.Drawing.Common": "8.0.11"
+        },
+        "runtime": {
+          "lib/net6.0/OpenCvSharp.Extensions.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "OpenCvSharp4.runtime.win/4.11.0.20250507": {
+        "runtimeTargets": {
+          "runtimes/win-x64/native/OpenCvSharpExtern.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/opencv_videoio_ffmpeg4110_64.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "2024.12.0.0"
+          },
+          "runtimes/win-x86/native/OpenCvSharpExtern.dll": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x86/native/opencv_videoio_ffmpeg4110.dll": {
+            "rid": "win-x86",
+            "assetType": "native",
+            "fileVersion": "2024.12.0.0"
+          }
+        }
+      },
+      "System.Drawing.Common/8.0.11": {
+        "dependencies": {
+          "Microsoft.Win32.SystemEvents": "8.0.0"
+        }
+      },
+      "System.Memory/4.6.3": {},
       "System.Security.AccessControl/4.7.0": {
         "dependencies": {
           "Microsoft.NETCore.Platforms": "3.1.0",
@@ -158,27 +183,6 @@
       "serviceable": false,
       "sha512": ""
     },
-    "AForge/2.2.5": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-clkumhM9DggqIzEXAHgVLeWO4arG5YfoPr7J4jfjJx35AoeEIJSSm49J25bwp/9mXQYLwi7y1Wunc8qgYJsGxg==",
-      "path": "aforge/2.2.5",
-      "hashPath": "aforge.2.2.5.nupkg.sha512"
-    },
-    "AForge.Video/2.2.5": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-XqzcOXtBUagEPRqg/00oayxlCPmxP4284SdM62mVotsNoD03fs19BrzdMBfhUOOYPyd0B/IXH7tEWnSDmc2gxA==",
-      "path": "aforge.video/2.2.5",
-      "hashPath": "aforge.video.2.2.5.nupkg.sha512"
-    },
-    "AForge.Video.DirectShow/2.2.5": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-pEch6felU/RGAbl0A7yjaQjsGxwiRFU9R+qBqR92wQo++XhzPLeQaZHnAPIBYaG7MfoqtjgCDkK4z3Tra4VQ3w==",
-      "path": "aforge.video.directshow/2.2.5",
-      "hashPath": "aforge.video.directshow.2.2.5.nupkg.sha512"
-    },
     "Microsoft.NETCore.Platforms/3.1.0": {
       "type": "package",
       "serviceable": true,
@@ -192,6 +196,13 @@
       "sha512": "sha512-KSrRMb5vNi0CWSGG1++id2ZOs/1QhRqROt+qgbEAdQuGjGrFcl4AOl4/exGPUYz2wUnU42nvJqon1T3U0kPXLA==",
       "path": "microsoft.win32.registry/4.7.0",
       "hashPath": "microsoft.win32.registry.4.7.0.nupkg.sha512"
+    },
+    "Microsoft.Win32.SystemEvents/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-9opKRyOKMCi2xJ7Bj7kxtZ1r9vbzosMvRrdEhVhDz8j8MoBGgB+WmC94yH839NPH+BclAjtQ/pyagvi/8gDLkw==",
+      "path": "microsoft.win32.systemevents/8.0.0",
+      "hashPath": "microsoft.win32.systemevents.8.0.0.nupkg.sha512"
     },
     "NAudio/2.2.1": {
       "type": "package",
@@ -241,6 +252,41 @@
       "sha512": "sha512-xFHRFwH4x6aq3IxRbewvO33ugJRvZFEOfO62i7uQJRUNW2cnu6BeBTHUS0JD5KBucZbHZaYqxQG8dwZ47ezQuQ==",
       "path": "naudio.winmm/2.2.1",
       "hashPath": "naudio.winmm.2.2.1.nupkg.sha512"
+    },
+    "OpenCvSharp4/4.11.0.20250507": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-j/R+G6xGC5IV2wGRU0/GF5qG/FrP+Uxp8dmNnXFlIdiw8Gfo4mtvKcBOBfS/bn4pP/7FNHLFX/xvMtgPJeDjAA==",
+      "path": "opencvsharp4/4.11.0.20250507",
+      "hashPath": "opencvsharp4.4.11.0.20250507.nupkg.sha512"
+    },
+    "OpenCvSharp4.Extensions/4.11.0.20250507": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-xVA5xpgvI6cWBx+Zf+kL7NIVc8dpT6ScgHq3nV5tlMBpoG2aClKaLSFHtlPAE99ASfqNieaDzeOduJTe4V1aGw==",
+      "path": "opencvsharp4.extensions/4.11.0.20250507",
+      "hashPath": "opencvsharp4.extensions.4.11.0.20250507.nupkg.sha512"
+    },
+    "OpenCvSharp4.runtime.win/4.11.0.20250507": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-3PxMXyzR+pkL9UOx2PiBjZm+/iyCIu5D6OlA1sq9MH7oWrfvVnCXJlUYhIJv67F7SLUwUuGwXDIQBfdsL/54lg==",
+      "path": "opencvsharp4.runtime.win/4.11.0.20250507",
+      "hashPath": "opencvsharp4.runtime.win.4.11.0.20250507.nupkg.sha512"
+    },
+    "System.Drawing.Common/8.0.11": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-AVyutHHKrX0Mt9C9T8W3Ccat3cVauUwvN+EqnVpSQi92nwBqoQ+2ZRvGP1S+rKK+6TGXmRflSYNShVjl2mMBlw==",
+      "path": "system.drawing.common/8.0.11",
+      "hashPath": "system.drawing.common.8.0.11.nupkg.sha512"
+    },
+    "System.Memory/4.6.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-qdcDOgnFZY40+Q9876JUHnlHu7bosOHX8XISRoH94fwk6hgaeQGSgfZd8srWRZNt5bV9ZW2TljcegDNxsf+96A==",
+      "path": "system.memory/4.6.3",
+      "hashPath": "system.memory.4.6.3.nupkg.sha512"
     },
     "System.Security.AccessControl/4.7.0": {
       "type": "package",

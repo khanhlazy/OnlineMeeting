@@ -32,6 +32,7 @@ public class Room
 
     public IEnumerable<ClientConn> Members => _members.Values;
 
+    // Thêm/loại bỏ thành viên tham gia phòng theo Username
     public void Add(ClientConn c) => _members[c.Username] = c;
     public void Remove(string username) => _members.TryRemove(username, out _);
 }
@@ -52,6 +53,7 @@ public class RoomManager
     }
 
     public Room? Get(string id) => _rooms.TryGetValue(id, out var r) ? r : null;
+    // Xoá phòng nếu không còn thành viên
     public void CleanupIfEmpty(string id)
     {
         if (_rooms.TryGetValue(id, out var r) && !r.Members.Any())

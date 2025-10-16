@@ -2253,11 +2253,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingServer\\MeetingServer.csproj",
+      "projectUniqueName": "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingServer\\MeetingServer.csproj",
       "projectName": "MeetingServer",
-      "projectPath": "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingServer\\MeetingServer.csproj",
+      "projectPath": "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingServer\\MeetingServer.csproj",
       "packagesPath": "C:\\Users\\khanh\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingServer\\obj\\",
+      "outputPath": "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingServer\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\khanh\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -2272,8 +2272,8 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj": {
-              "projectPath": "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj"
+            "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj": {
+              "projectPath": "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj"
             }
           }
         }

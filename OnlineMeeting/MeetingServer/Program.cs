@@ -17,5 +17,6 @@ Console.WriteLine($"Endpoint: {host}:{port}");
 Console.WriteLine("Nhấn Ctrl+C để dừng.");
 
 var cts = new CancellationTokenSource();
+// Bắt tín hiệu Ctrl+C để dừng server an toàn
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
 await server.RunAsync(cts.Token);

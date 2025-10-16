@@ -12,6 +12,9 @@ public class Server
     private readonly RoomManager _rooms = new();
     private readonly TcpListener _listener;
     private readonly ConcurrentDictionary<ClientConn, Task> _clients = new();
+    private const int MaxVideoBytes = 300_000; // ~300 KB per frame
+    // Server TCP đơn giản: nhận gói từ client, phân loại theo MsgType và xử lý.
+    // Quản lý phòng họp qua RoomManager, broadcast chat/video/audio tới các thành viên trong phòng.
 
     public Server(IPAddress ip, int port, Db db)
     {
@@ -52,6 +55,7 @@ public class Server
                 int read = await ns.ReadAsync(buf, 0, buf.Length, ct);
                 if (read <= 0) break;
                 recv.Write(buf, 0, read);
+                // Tách các gói đầy đủ từ buffer và xử lý từng gói
                 while (Packet.TryParse(ref recv, out var type, out var payload))
                 {
                     await OnMessageAsync(c, type, payload, ct);
@@ -72,10 +76,12 @@ public class Server
 
     private async Task OnMessageAsync(ClientConn c, MsgType type, byte[] payload, CancellationToken ct)
     {
+        // Router: phân luồng xử lý theo loại thông điệp
         switch (type)
         {
             case MsgType.Register:
             {
+                // payload: "username|password"
                 var parts = Packet.Str(payload).Split('|', 2);
                 var ok = await _db.RegisterAsync(parts[0], parts[1]);
                 await SendAsync(c, MsgType.Info, Packet.Str(ok ? "REGISTER_OK" : "REGISTER_FAIL"));
@@ -83,6 +89,7 @@ public class Server
             }
             case MsgType.Login:
             {
+                // payload: "username|password"
                 var parts = Packet.Str(payload).Split('|', 2);
                 var ok = await _db.LoginAsync(parts[0], parts[1]);
                 if (ok) c.Username = parts[0];
@@ -91,6 +98,7 @@ public class Server
             }
             case MsgType.CreateRoom:
             {
+                // Tạo phòng mới, đặt client là Host, trả về mã phòng
                 if (string.IsNullOrEmpty(c.Username)) { await SendAsync(c, MsgType.Info, Packet.Str("NEED_LOGIN")); break; }
                 var room = _rooms.CreateRoom(c);
                 await SendAsync(c, MsgType.Info, Packet.Str($"ROOM_CREATED|{room.Id}"));
@@ -99,6 +107,8 @@ public class Server
             }
             case MsgType.JoinRoom:
             {
+                // Tham gia phòng theo mã; yêu cầu đã đăng nhập
+                if (string.IsNullOrEmpty(c.Username)) { await SendAsync(c, MsgType.Info, Packet.Str("NEED_LOGIN")); break; }
                 var rid = Packet.Str(payload);
                 var room = _rooms.Get(rid);
                 if (room == null) { await SendAsync(c, MsgType.Info, Packet.Str("ROOM_NOT_FOUND")); break; }
@@ -128,8 +138,22 @@ public class Server
 }
 
             case MsgType.Video:
+            {
+                // Giới hạn kích thước khung hình để tránh nghẽn băng thông
+                if (payload is { Length: > MaxVideoBytes })
+                {
+                    // Drop oversized frames silently
+                    break;
+                }
+                if (c.RoomId is null) break;
+                var room = _rooms.Get(c.RoomId);
+                if (room is null) break;
+                await BroadcastRoom(room, c, type, payload);
+                break;
+            }
             case MsgType.Audio:
             {
+                // Audio PCM 16kHz mono, trộn đơn giản ở client
                 if (c.RoomId is null) break;
                 var room = _rooms.Get(c.RoomId);
                 if (room is null) break;
@@ -163,6 +187,7 @@ public class Server
 
             case MsgType.Kick:
             {
+                // Chỉ Host được kick; không được kick Host
                 if (c.RoomId is null) break;
                 var room = _rooms.Get(c.RoomId);
                 if (room is null) break;
@@ -180,12 +205,14 @@ public class Server
             }
             case MsgType.Leave:
             {
+                // Client chủ động rời phòng
                 await OnDisconnectAsync(c);
                 break;
             }
         }
     }
 
+    // Gửi payload tới tất cả thành viên trong phòng (trừ người gửi)
     private async Task BroadcastRoom(Room room, ClientConn from, MsgType type, byte[] payload)
     {
         var pkt = Packet.Make(type, payload);
@@ -196,6 +223,7 @@ public class Server
         }
     }
 
+    // Gửi danh sách người tham gia (và trạng thái host/cam/mic) cho cả phòng
     private async Task BroadcastParticipants(Room room)
     {
         var list = room.Members
@@ -207,12 +235,14 @@ public class Server
             try { await m.Stream.WriteAsync(pkt); } catch { }
     }
 
+    // Gửi 1 gói tin đơn lẻ tới client
     private async Task SendAsync(ClientConn c, MsgType t, byte[] p)
     {
         var pkt = Packet.Make(t, p);
         try { await c.Stream.WriteAsync(pkt); } catch { }
     }
 
+    // Dọn dẹp khi client rời phòng/ngắt kết nối
     private async Task OnDisconnectAsync(ClientConn c)
     {
         if (c.RoomId != null)

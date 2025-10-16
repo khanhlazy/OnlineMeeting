@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingClient\\MeetingClient.csproj": {}
+    "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingClient\\MeetingClient.csproj": {}
   },
   "projects": {
-    "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingClient\\MeetingClient.csproj": {
+    "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingClient\\MeetingClient.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingClient\\MeetingClient.csproj",
+        "projectUniqueName": "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingClient\\MeetingClient.csproj",
         "projectName": "MeetingClient",
-        "projectPath": "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingClient\\MeetingClient.csproj",
+        "projectPath": "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingClient\\MeetingClient.csproj",
         "packagesPath": "C:\\Users\\khanh\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingClient\\obj\\",
+        "outputPath": "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingClient\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\khanh\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -26,8 +26,8 @@
           "net9.0-windows7.0": {
             "targetAlias": "net9.0-windows",
             "projectReferences": {
-              "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj": {
-                "projectPath": "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj"
+              "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj": {
+                "projectPath": "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj"
               }
             }
           }
@@ -48,17 +48,21 @@
         "net9.0-windows7.0": {
           "targetAlias": "net9.0-windows",
           "dependencies": {
-            "AForge.Video": {
-              "target": "Package",
-              "version": "[2.2.5, )"
-            },
-            "AForge.Video.DirectShow": {
-              "target": "Package",
-              "version": "[2.2.5, )"
-            },
             "NAudio": {
               "target": "Package",
               "version": "[2.2.1, )"
+            },
+            "OpenCvSharp4": {
+              "target": "Package",
+              "version": "[4.11.0.20250507, )"
+            },
+            "OpenCvSharp4.Extensions": {
+              "target": "Package",
+              "version": "[4.11.0.20250507, )"
+            },
+            "OpenCvSharp4.runtime.win": {
+              "target": "Package",
+              "version": "[4.11.0.20250507, )"
             }
           },
           "imports": [
@@ -84,14 +88,14 @@
         }
       }
     },
-    "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj": {
+    "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj",
+        "projectUniqueName": "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj",
         "projectName": "MeetingShared",
-        "projectPath": "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj",
+        "projectPath": "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingShared\\MeetingShared.csproj",
         "packagesPath": "C:\\Users\\khanh\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingShared\\obj\\",
+        "outputPath": "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingShared\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\khanh\\AppData\\Roaming\\NuGet\\NuGet.Config"

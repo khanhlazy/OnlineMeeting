@@ -3,6 +3,8 @@ using System.Text;
 
 namespace MeetingShared;
 
+// Kiểu thông điệp trao đổi giữa Client và Server qua TCP.
+// Mỗi gói tin có header gồm 1 byte (MsgType) + 4 byte (độ dài payload Big Endian), theo sau là payload.
 public enum MsgType : byte
 {
     Register = 1,
@@ -22,6 +24,7 @@ public enum MsgType : byte
 
 public static class Packet
 {
+    // Đóng gói: [1 byte type][4 byte length BE][payload]
     public static byte[] Make(MsgType type, byte[] payload)
     {
         payload ??= Array.Empty<byte>();
@@ -32,6 +35,7 @@ public static class Packet
         return buf;
     }
 
+    // Giải gói từ buffer nhận. Nếu chưa đủ dữ liệu sẽ trả về false và chờ thêm.
     public static bool TryParse(ref MemoryStream recvBuf, out MsgType type, out byte[] payload)
     {
         type = 0; payload = Array.Empty<byte>();
@@ -49,6 +53,7 @@ public static class Packet
         return true;
     }
 
+    // Tiện ích chuyển đổi chuỗi <-> bytes UTF8 cho payload text
     public static byte[] Str(string s) => Encoding.UTF8.GetBytes(s);
     public static string Str(byte[] b) => Encoding.UTF8.GetString(b);
 }

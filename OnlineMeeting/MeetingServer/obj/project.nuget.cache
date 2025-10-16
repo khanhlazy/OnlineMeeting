@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "BcV/jZIhByo=",
+  "dgSpecHash": "db6JIFQbfG8=",
   "success": true,
-  "projectFilePath": "C:\\Users\\khanh\\Downloads\\OnlineMeeting_fixed\\OnlineMeeting\\MeetingServer\\MeetingServer.csproj",
+  "projectFilePath": "C:\\Users\\khanh\\Downloads\\AppOnlineMeeting\\OnlineMeeting\\MeetingServer\\MeetingServer.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\khanh\\.nuget\\packages\\azure.core\\1.38.0\\azure.core.1.38.0.nupkg.sha512",
     "C:\\Users\\khanh\\.nuget\\packages\\azure.identity\\1.11.4\\azure.identity.1.11.4.nupkg.sha512",

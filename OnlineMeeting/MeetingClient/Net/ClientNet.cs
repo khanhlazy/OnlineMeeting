@@ -10,12 +10,14 @@ namespace MeetingClient.Net
     {
         public TcpClient Tcp { get; private set; } = new();
         public NetworkStream Stream => Tcp.GetStream();
+        // Sự kiện: bắn ra mỗi khi nhận được gói tin đầy đủ từ server
         public event Action<MsgType, byte[]>? OnMessage;
 
         private readonly byte[] _buf = new byte[1024 * 1024];
         private MemoryStream _recv = new();
         private bool _running = false;
 
+        // Kết nối tới server TCP và khởi chạy vòng lặp nhận dữ liệu
         public async Task ConnectAsync(string host, int port)
         {
             try
@@ -40,6 +42,7 @@ namespace MeetingClient.Net
             }
         }
 
+        // Vòng lặp nhận dữ liệu: đọc socket -> đẩy vào buffer -> tách gói với Packet.TryParse
         private async Task RecvLoop()
         {
             try
@@ -71,6 +74,7 @@ namespace MeetingClient.Net
             }
         }
 
+        // Gửi gói tin với header theo chuẩn Packet.Make
         public async Task SendAsync(MsgType type, byte[] payload)
         {
             if (!Tcp.Connected) 
@@ -87,6 +91,7 @@ namespace MeetingClient.Net
             }
         }
 
+        // Ngắt kết nối một cách an toàn
         public void Disconnect()
         {
             _running = false;
