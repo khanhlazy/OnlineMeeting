@@ -297,7 +297,6 @@ namespace MeetingClient.Forms
 
                 case MsgType.Audio:
                 {
-                    // Audio trộn chung (đơn giản)
                     if (_audioBuffer == null)
                     {
                         _audioBuffer = new BufferedWaveProvider(new WaveFormat(16000, 1))
