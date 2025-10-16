@@ -33,8 +33,7 @@ namespace MeetingClient.Forms
         private readonly ToolStrip _toolbar = new()
         {
             GripStyle = ToolStripGripStyle.Hidden,
-            RenderMode = ToolStripRenderMode.System,
-            Padding = new Padding(5, 0, 5, 0)
+            RenderMode = ToolStripRenderMode.System
         };
         private readonly ToolStripLabel _lblRoom = new();
         private readonly ToolStripButton _btnCopyRoom = new() { Text = "Sao chép mã", DisplayStyle = ToolStripItemDisplayStyle.Text };
@@ -52,23 +51,20 @@ namespace MeetingClient.Forms
         private readonly ToolStripMenuItem _miMicReal = new("Micro thật") { Checked = true, CheckOnClick = true };
         private readonly ToolStripMenuItem _miMicDemo = new("Demo (tone)") { CheckOnClick = true };
 
-        private readonly StatusStrip _status = new()
-        {
-            Padding = new Padding(5, 0, 5, 0)
-        };
+        private readonly StatusStrip _status = new();
         private readonly ToolStripStatusLabel _lblNet = new() { Text = "Sẵn sàng" };
 
         // Cột trái: Preview + Users
         private readonly PictureBox _picLocal = new()
         {
+            Height = 170,
             Dock = DockStyle.Top,
             BorderStyle = BorderStyle.FixedSingle,
-            SizeMode = PictureBoxSizeMode.Zoom,
-            MinimumSize = new DSize(240, 180)
+            SizeMode = PictureBoxSizeMode.Zoom
         };
-        private readonly Label _lbLocal = new() { Dock = DockStyle.Top, Height = 20, TextAlign = ContentAlignment.MiddleCenter };
+        private readonly Label _lbLocal = new() { Dock = DockStyle.Top, Height = 18, TextAlign = ContentAlignment.MiddleCenter };
         private readonly ListBox _lstUsers = new() { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle };
-        private readonly Button _btnKick = new() { Text = "Kick (Host)", Dock = DockStyle.Bottom, Height = 30, Enabled = false };
+        private readonly Button _btnKick = new() { Text = "Kick (Host)", Dock = DockStyle.Bottom, Height = 32, Enabled = false };
 
         // Trung tâm: Video grid + Chat
         private readonly TableLayoutPanel _videoGrid = new()
@@ -77,8 +73,7 @@ namespace MeetingClient.Forms
             AutoScroll = true,
             ColumnCount = 2,
             BackColor = Theme.Palette.Background,
-            Padding = new Padding(10),
-            Margin = new Padding(5)
+            Padding = new Padding(8)
         };
 
         private readonly RichTextBox _rtbChat = new()
@@ -88,8 +83,8 @@ namespace MeetingClient.Forms
             Dock = DockStyle.Fill,
             BorderStyle = BorderStyle.FixedSingle
         };
-        private readonly TextBox _txtChat = new() { PlaceholderText = "Nhập tin nhắn và Enter...", Dock = DockStyle.Fill, Height = 30 };
-        private readonly Button _btnSend = new() { Text = "Gửi", Dock = DockStyle.Fill, Height = 30 };
+        private readonly TextBox _txtChat = new() { PlaceholderText = "Nhập tin nhắn và Enter...", Dock = DockStyle.Fill, Height = 26 };
+        private readonly Button _btnSend = new() { Text = "Gửi", Dock = DockStyle.Fill, Height = 28 };
 
         // Menu chuột phải trên danh sách user (tiện kick)
         private readonly ContextMenuStrip _userMenu = new();
@@ -125,7 +120,9 @@ namespace MeetingClient.Forms
             // cấu hình cột 50/50
             _videoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             _videoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            _videoGrid.RowStyles.Clear();
+            _videoGrid.RowCount = 2; // Fixed 2x2 layout
+            _videoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            _videoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         }
 
         // Màn hình phòng họp: quản lý video/mic, chat, danh sách người tham gia
@@ -133,8 +130,7 @@ namespace MeetingClient.Forms
         {
             base.OnLoad(e);
             Text = $"Phòng {_roomId} - Người dùng: {_username}{(_isHost ? " (Host)" : "")}";
-            MinimumSize = new DSize(800, 600);
-            Width = 1280; Height = 800;
+            Width = 1280; Height = 780;
 
             // ===== Toolbar =====
             _lblRoom.Text = $"Phòng: {_roomId}";
@@ -156,7 +152,7 @@ namespace MeetingClient.Forms
             Controls.Add(_status);
 
             // ===== Khối trái: preview + users ====
-            var left = new Panel { Dock = DockStyle.Left, Width = 280, Padding = new Padding(10) };
+            var left = new Panel { Dock = DockStyle.Left, Width = 260, Padding = new Padding(8) };
             _lbLocal.Text = $"({_username}) Video của bạn";
             _btnKick.Enabled = _isHost;
 
@@ -172,51 +168,45 @@ namespace MeetingClient.Forms
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Horizontal,
                 FixedPanel = FixedPanel.Panel2,
-                Panel2MinSize = 150,
-                SplitterWidth = 6,
-                SplitterDistance = Height - 200
+                Panel2MinSize = 140,
+                SplitterWidth = 6
             };
 
             // Video Grid
             split.Panel1.Controls.Add(_videoGrid);
 
-            // Chat (TableLayout with header)
-            var chatPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(10) };
-            var chatHeader = new Label
-            {
-                Text = "Chat",
-                Dock = DockStyle.Top,
-                Height = 25,
-                BackColor = Theme.Palette.BackgroundDark,
-                ForeColor = Theme.Palette.TextSecondary, // Adjusted to use TextSecondary
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-            var chatLayout = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 1,
-                RowCount = 2,
-                Padding = new Padding(0, 5, 0, 0)
-            };
-            chatLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 90));
-            chatLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 35));
-
-            chatLayout.Controls.Add(_rtbChat, 0, 0);
-            var sendPanel = new TableLayoutPanel
+            // Chat (TableLayout)
+            var chat = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                Padding = new Padding(0, 0, 5, 0)
+                RowCount = 2,
+                Padding = new Padding(8),
+                BackColor = Theme.Palette.BackgroundDark
             };
-            sendPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 75));
-            sendPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25));
-            sendPanel.Controls.Add(_txtChat, 0, 0);
-            sendPanel.Controls.Add(_btnSend, 1, 0);
-            chatLayout.Controls.Add(sendPanel, 0, 1);
+            chat.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            chat.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
+            chat.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            chat.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
 
-            chatPanel.Controls.Add(chatHeader);
-            chatPanel.Controls.Add(chatLayout);
-            split.Panel2.Controls.Add(chatPanel);
+            chat.Controls.Add(_rtbChat, 0, 0);
+            chat.SetColumnSpan(_rtbChat, 2);
+
+            var sendRow = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2
+            };
+            sendRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            sendRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
+
+            sendRow.Controls.Add(_txtChat, 0, 0);
+            sendRow.Controls.Add(_btnSend, 1, 0);
+
+            chat.Controls.Add(sendRow, 0, 1);
+            chat.SetColumnSpan(sendRow, 2);
+
+            split.Panel2.Controls.Add(chat);
             Controls.Add(split);
 
             // Apply theme and emphasize actions
@@ -361,6 +351,7 @@ namespace MeetingClient.Forms
                     var s = Packet.Str(p);
                     BeginInvoke(new Action(() =>
                     {
+                        var currentUsers = new HashSet<string>();
                         _lstUsers.Items.Clear();
                         foreach (var item in s.Split(';', StringSplitOptions.RemoveEmptyEntries))
                         {
@@ -374,6 +365,7 @@ namespace MeetingClient.Forms
                                 name + (isHost ? " (Host)" : "") +
                                 $"  [Cam:{(cam ? "On" : "Off")}  Mic:{(mic ? "On" : "Off")}]"
                             );
+                            currentUsers.Add(name);
 
                             // tạo sẵn tile video cho từng người
                             EnsureTile(name);
@@ -405,7 +397,7 @@ namespace MeetingClient.Forms
                 case MsgType.Video:
                 {
                     // Payload: "<username>|<jpeg bytes>"
-                    if (!TrySplitUserPayload(p, out var user, out var bytes)) break;
+                    if (!TrySplitUserPayload(p, out var user, out var bytes) || user == _username) break; // Skip local video
                     try
                     {
                         using var ms = new MemoryStream(bytes);
@@ -439,6 +431,7 @@ namespace MeetingClient.Forms
         // ============ Video grid (multi user) ============
         private void ShowRemoteFrame(string user, Image img)
         {
+            if (user == _username) return; // Skip displaying local video in grid
             var pb = EnsureTile(user);
             var old = pb.Image;
             pb.Image = (Image)img.Clone();
@@ -457,7 +450,7 @@ namespace MeetingClient.Forms
                 BorderStyle = BorderStyle.FixedSingle,
                 SizeMode = PictureBoxSizeMode.Zoom,
                 BackColor = Color.Black,
-                MinimumSize = new DSize(240, 180)
+                MinimumSize = new DSize(240, 160)
             };
 
             // Header tên
@@ -465,8 +458,8 @@ namespace MeetingClient.Forms
             {
                 Text = user,
                 Dock = DockStyle.Top,
-                Height = 25,
-                ForeColor = Theme.Palette.TextSecondary,
+                Height = 22,
+                ForeColor = Color.White, // Fallback to White instead of Theme.Palette.TextSecondary
                 TextAlign = ContentAlignment.MiddleCenter,
                 Padding = new Padding(6, 3, 6, 3)
             };
@@ -475,7 +468,7 @@ namespace MeetingClient.Forms
             var cell = new Panel
             {
                 BackColor = Color.FromArgb(20, 24, 44),
-                Margin = new Padding(10),
+                Margin = new Padding(8),
                 Padding = new Padding(0),
                 Dock = DockStyle.Fill
             };
@@ -484,38 +477,40 @@ namespace MeetingClient.Forms
                 Dock = DockStyle.Fill,
                 RowCount = 2
             };
-            cellLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 25));
+            cellLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
             cellLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             cellLayout.Controls.Add(cap, 0, 0);
             cellLayout.Controls.Add(pb, 0, 1);
             cell.Controls.Add(cellLayout);
 
-            // Tính hàng/cột (2 cột)
-            var index = _videoGrid.Controls.Count;
+            // Tính hàng/cột (2 cột, tối đa 2 hàng)
+            var index = _remoteTiles.Count;
             var row = index / 2;
             var col = index % 2;
 
-            if (row >= _videoGrid.RowCount)
+            if (row < 2) // Limit to 2x2 grid
             {
-                _videoGrid.RowCount = row + 1;
-                _videoGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                _videoGrid.Controls.Add(cell, col, row);
+                _remoteTiles[user] = pb;
             }
 
-            _videoGrid.Controls.Add(cell, col, row);
-
-            _remoteTiles[user] = pb;
             return pb;
         }
 
         private void AdjustVideoGridLayout()
         {
-            var participantCount = _remoteTiles.Count + 1; // Include local user
-            var rows = (int)Math.Ceiling(participantCount / 2.0);
+            var remoteCount = _remoteTiles.Count;
+            var rows = Math.Min(2, (int)Math.Ceiling(remoteCount / 2.0)); // Max 2 rows
             _videoGrid.RowCount = rows;
             _videoGrid.RowStyles.Clear();
             for (int i = 0; i < rows; i++)
             {
-                _videoGrid.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                _videoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            }
+            // Clear excess controls if any
+            while (_videoGrid.Controls.Count > remoteCount)
+            {
+                _videoGrid.Controls.RemoveAt(_videoGrid.Controls.Count - 1);
             }
         }
 
@@ -634,7 +629,7 @@ namespace MeetingClient.Forms
         private async void VideoTimer_Tick(object? sender, EventArgs e)
         {
             if (!_camOn) return;
-            int w = 640, h = 360;
+            int w = 240, h = 180; // Adjusted for preview size
             using var bmp = new Bitmap(w, h);
             using var g = Graphics.FromImage(bmp);
             g.Clear(Color.FromArgb(20, 20, 20));
@@ -646,7 +641,7 @@ namespace MeetingClient.Forms
                 using var br = new SolidBrush(Color.FromArgb(rnd.Next(60, 200), rnd.Next(60, 200), rnd.Next(60, 200)));
                 g.FillRectangle(br, rect);
             }
-            using var f = new Font("Segoe UI", 16, FontStyle.Bold);
+            using var f = new Font("Segoe UI", 12, FontStyle.Bold);
             g.DrawString($"DEMO {_username}", f, Brushes.White, 10, 10);
             await SendFrameAsync((Bitmap)bmp.Clone());
         }
