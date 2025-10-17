@@ -367,10 +367,25 @@ namespace MeetingClient.Forms
                             );
                             currentUsers.Add(name);
 
-                            // tạo sẵn tile video cho từng người
-                            EnsureTile(name);
+                            // Only create tiles for remote users, not the local user
+                            if (name != _username)
+                            {
+                                EnsureTile(name);
+                            }
                         }
-                        AdjustVideoGridLayout();
+
+                        // Remove tiles for users who left
+                        var usersToRemove = _remoteTiles.Keys.Where(u => !currentUsers.Contains(u)).ToList();
+                        foreach (var user in usersToRemove)
+                        {
+                            if (_remoteTiles.TryGetValue(user, out var pb))
+                            {
+                                _videoGrid.Controls.Remove(pb.Parent.Parent); // Remove the cell panel
+                                _remoteTiles.Remove(user);
+                            }
+                        }
+
+                        UpdateVideoGrid();
                     }));
                     break;
                 }
