@@ -54,6 +54,5 @@ Hoặc mở `OnlineMeeting_fixed.sln` bằng Visual Studio 2022 (17.12+) và Bui
 - Âm thanh rè/echo khi chạy nhiều client trên cùng máy: dùng headphone
 - Không đăng nhập được: kiểm tra DB và firewall (TCP `5555`, SQL Server)
 
-### 9) Giấy phép
-Mã nguồn dùng cho mục đích học tập và demo. Kiểm tra giấy phép của các gói phụ thuộc trước khi dùng thương mại.
+
 
