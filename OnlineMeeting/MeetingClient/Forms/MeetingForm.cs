@@ -114,16 +114,48 @@ namespace MeetingClient.Forms
         // Multi-video: quản lý tile theo username
         private readonly Dictionary<string, PictureBox> _remoteTiles = new();
 
+        // ======= chống crash khi mất kết nối =======
+        private bool _shownDisconnect = false;
+
         public MeetingForm(ClientNet net, string username, string roomId, bool isHost)
         {
             _net = net; _username = username; _roomId = roomId; _isHost = isHost;
 
-            // cấu hình cột 50/50 cho lưới video
+            // cấu hình lưới video 2x2
             _videoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             _videoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            _videoGrid.RowCount = 2; // Fixed 2x2 layout
+            _videoGrid.RowCount = 2;
             _videoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
             _videoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+        }
+
+        // ========== Helper xử lý lỗi mạng ==========
+        private void HandleNetException(Exception ex)
+        {
+            if (_shownDisconnect) return;
+            _shownDisconnect = true;
+
+            _lblNet.Text = "Mất kết nối tới server.";
+            try { _videoTimer?.Stop(); } catch { }
+            _camOn = false; _btnCam.Text = "Camera: Tắt"; StopCamera();
+            _micOn = false; _btnMic.Text = "Mic: Tắt"; StopMic();
+
+            // Nếu muốn tự đóng form khi rớt mạng, bỏ comment dòng dưới:
+            // BeginInvoke(new Action(() => Close()));
+        }
+
+        private async Task<bool> SafeSendAsync(MsgType type, byte[] payload)
+        {
+            try
+            {
+                await _net.SendAsync(type, payload);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                HandleNetException(ex);
+                return false;
+            }
         }
 
         // Màn hình phòng họp: quản lý video/mic, chat, danh sách người tham gia
@@ -153,7 +185,7 @@ namespace MeetingClient.Forms
             _status.Dock = DockStyle.Bottom;
             Controls.Add(_status);
 
-            // ====== Áp theme và nút ======
+            // Apply theme and emphasize actions
             Theme.Apply(this);
             Theme.StyleSecondary(_btnCopyRoom);
             Theme.StyleSecondary(_btnCam);
@@ -167,12 +199,11 @@ namespace MeetingClient.Forms
             _miKick.Enabled = _isHost;
             _btnKick.Enabled = _isHost;
 
-            // ===================== BỐ CỤC MỚI: 3 CỘT =====================
-            // Bạn có thể đổi nhanh 2 con số sau:
-            int chatRightWidth = 320; // <- kích thước cột phải (chat)
-            int previewHeight = 210;  // <- chiều cao nhóm preview (local)
+            // ===================== BỐ CỤC 3 CỘT =====================
+            // Tuỳ chỉnh nhanh hai thông số:
+            int chatRightWidth = 320; // rộng cột chat (phải)
+            int previewHeight = 210;  // cao khung preview (trái, trên)
 
-            // Content 3 cột: Trái (260), Giữa (*), Phải (chatRightWidth)
             var content = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -180,12 +211,12 @@ namespace MeetingClient.Forms
                 RowCount = 1,
                 BackColor = Theme.Palette.Background
             };
-            content.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260)); // trái
-            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));  // giữa
-            content.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, chatRightWidth)); // phải
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260)); // trái: preview + users
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));  // giữa: video grid
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, chatRightWidth)); // phải: chat
             Controls.Add(content);
 
-            // ===== CỘT TRÁI: PREVIEW + USERS + KICK =====
+            // ===== CỘT TRÁI =====
             var leftCol = new TableLayoutPanel
             {
                 Dock = DockStyle.Fill,
@@ -292,7 +323,10 @@ namespace MeetingClient.Forms
             {
                 _camOn = !_camOn;
                 _btnCam.Text = _camOn ? "Camera: Bật" : "Camera: Tắt";
-                await _net.SendAsync(MsgType.ToggleCam, Packet.Str(_camOn ? "ON" : "OFF"));
+                if (!await SafeSendAsync(MsgType.ToggleCam, Packet.Str(_camOn ? "ON" : "OFF")))
+                {
+                    _camOn = false; _btnCam.Text = "Camera: Tắt"; return;
+                }
                 if (_camOn) StartCamera(); else StopCamera();
             };
 
@@ -300,7 +334,10 @@ namespace MeetingClient.Forms
             {
                 _micOn = !_micOn;
                 _btnMic.Text = _micOn ? "Mic: Bật" : "Mic: Tắt";
-                await _net.SendAsync(MsgType.ToggleMic, Packet.Str(_micOn ? "ON" : "OFF"));
+                if (!await SafeSendAsync(MsgType.ToggleMic, Packet.Str(_micOn ? "ON" : "OFF")))
+                {
+                    _micOn = false; _btnMic.Text = "Mic: Tắt"; return;
+                }
                 if (_micOn) StartMic(); else StopMic();
             };
 
@@ -324,7 +361,7 @@ namespace MeetingClient.Forms
         protected override async void OnFormClosed(FormClosedEventArgs e)
         {
             base.OnFormClosed(e);
-            try { await _net.SendAsync(MsgType.Leave, Packet.Str("")); } catch { }
+            try { await SafeSendAsync(MsgType.Leave, Packet.Str("")); } catch { }
             StopCamera(); StopMic();
         }
 
@@ -334,8 +371,7 @@ namespace MeetingClient.Forms
             var raw = _txtChat.Text.Trim();
             if (raw.Length == 0) return;
 
-            // Gửi text thô; server sẽ ghép "<username>: "
-            await _net.SendAsync(MsgType.Chat, Packet.Str(raw));
+            if (!await SafeSendAsync(MsgType.Chat, Packet.Str(raw))) return;
 
             _rtbChat.AppendText($"(Bạn) {raw}{Environment.NewLine}");
             _rtbChat.SelectionStart = _rtbChat.TextLength;
@@ -375,7 +411,7 @@ namespace MeetingClient.Forms
 
             if (ok == DialogResult.Yes)
             {
-                await _net.SendAsync(MsgType.Kick, Packet.Str(target));
+                await SafeSendAsync(MsgType.Kick, Packet.Str(target));
             }
         }
 
@@ -679,7 +715,7 @@ namespace MeetingClient.Forms
                     var payload = new byte[header.Length + jpeg.Length];
                     Buffer.BlockCopy(header, 0, payload, 0, header.Length);
                     Buffer.BlockCopy(jpeg, 0, payload, header.Length, jpeg.Length);
-                    await _net.SendAsync(MsgType.Video, payload);
+                    await SafeSendAsync(MsgType.Video, payload);
                 }
             }
         }
@@ -696,21 +732,28 @@ namespace MeetingClient.Forms
         private async void VideoTimer_Tick(object? sender, EventArgs e)
         {
             if (!_camOn) return;
-            int w = 240, h = 180; // kích thước demo
-            using var bmp = new Bitmap(w, h);
-            using var g = Graphics.FromImage(bmp);
-            g.Clear(Color.FromArgb(20, 20, 20));
-            int t = _demoFrameTick++;
-            var rnd = new Random(t);
-            for (int i = 0; i < 5; i++)
+            try
             {
-                var rect = new Rectangle((t * 7 + i * 60) % w, 40 + i * 40, 120, 30);
-                using var br = new SolidBrush(Color.FromArgb(rnd.Next(60, 200), rnd.Next(60, 200), rnd.Next(60, 200)));
-                g.FillRectangle(br, rect);
+                int w = 240, h = 180; // kích thước demo
+                using var bmp = new Bitmap(w, h);
+                using var g = Graphics.FromImage(bmp);
+                g.Clear(Color.FromArgb(20, 20, 20));
+                int t = _demoFrameTick++;
+                var rnd = new Random(t);
+                for (int i = 0; i < 5; i++)
+                {
+                    var rect = new Rectangle((t * 7 + i * 60) % w, 40 + i * 40, 120, 30);
+                    using var br = new SolidBrush(Color.FromArgb(rnd.Next(60, 200), rnd.Next(60, 200), rnd.Next(60, 200)));
+                    g.FillRectangle(br, rect);
+                }
+                using var f = new Font("Segoe UI", 12, FontStyle.Bold);
+                g.DrawString($"DEMO {_username}", f, Brushes.White, 10, 10);
+                await SendFrameAsync((Bitmap)bmp.Clone());
             }
-            using var f = new Font("Segoe UI", 12, FontStyle.Bold);
-            g.DrawString($"DEMO {_username}", f, Brushes.White, 10, 10);
-            await SendFrameAsync((Bitmap)bmp.Clone());
+            catch (Exception ex)
+            {
+                HandleNetException(ex);
+            }
         }
 
         // ============ Mic ============
@@ -749,7 +792,7 @@ namespace MeetingClient.Forms
                     if (max < 500) return;
 
                     var pcm = e.Buffer.Take(e.BytesRecorded).ToArray();
-                    await _net.SendAsync(MsgType.Audio, pcm);
+                    await SafeSendAsync(MsgType.Audio, pcm);
                 };
                 _mic.StartRecording();
             }
@@ -793,7 +836,7 @@ namespace MeetingClient.Forms
                         phase += twoPi * freq / sampleRate;
                         if (phase > twoPi) phase -= twoPi;
                     }
-                    try { await _net.SendAsync(MsgType.Audio, buf.ToArray()); } catch { }
+                    try { await SafeSendAsync(MsgType.Audio, buf.ToArray()); } catch { }
                     await Task.Delay(40, ct);
                 }
             }, ct);
