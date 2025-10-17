@@ -66,7 +66,7 @@ namespace MeetingClient.Forms
         private readonly ListBox _lstUsers = new() { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle };
         private readonly Button _btnKick = new() { Text = "Kick (Host)", Dock = DockStyle.Bottom, Height = 32, Enabled = false };
 
-        // Trung tâm: Video grid + Chat
+        // Trung tâm: Video grid
         private readonly TableLayoutPanel _videoGrid = new()
         {
             Dock = DockStyle.Fill,
@@ -76,6 +76,7 @@ namespace MeetingClient.Forms
             Padding = new Padding(8)
         };
 
+        // Phải: Chat
         private readonly RichTextBox _rtbChat = new()
         {
             ReadOnly = true,
@@ -117,7 +118,7 @@ namespace MeetingClient.Forms
         {
             _net = net; _username = username; _roomId = roomId; _isHost = isHost;
 
-            // cấu hình cột 50/50
+            // cấu hình cột 50/50 cho lưới video
             _videoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             _videoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             _videoGrid.RowCount = 2; // Fixed 2x2 layout
@@ -144,6 +145,7 @@ namespace MeetingClient.Forms
                 new ToolStripLabel("Mic:"), _cmbMic, _ddMicSrc, _btnMic,
                 _sep2, _btnLeave
             });
+            _toolbar.Dock = DockStyle.Top;
             Controls.Add(_toolbar);
 
             // ===== Status bar =====
@@ -151,65 +153,7 @@ namespace MeetingClient.Forms
             _status.Dock = DockStyle.Bottom;
             Controls.Add(_status);
 
-            // ===== Khối trái: preview + users ====
-            var left = new Panel { Dock = DockStyle.Left, Width = 260, Padding = new Padding(8) };
-            _lbLocal.Text = $"({_username}) Video của bạn";
-            _btnKick.Enabled = _isHost;
-
-            left.Controls.Add(_btnKick);
-            left.Controls.Add(_lstUsers);
-            left.Controls.Add(_lbLocal);
-            left.Controls.Add(_picLocal);
-            Controls.Add(left);
-
-            // ===== Khối giữa: videos + chat (SplitContainer) =====
-            var split = new SplitContainer
-            {
-                Dock = DockStyle.Fill,
-                Orientation = Orientation.Horizontal,
-                FixedPanel = FixedPanel.Panel2,
-                Panel2MinSize = 140,
-                SplitterWidth = 6
-            };
-
-            // Video Grid
-            split.Panel1.Controls.Add(_videoGrid);
-
-            // Chat (TableLayout)
-            var chat = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 2,
-                RowCount = 2,
-                Padding = new Padding(8),
-                BackColor = Theme.Palette.BackgroundDark
-            };
-            chat.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            chat.RowStyles.Add(new RowStyle(SizeType.Absolute, 38));
-            chat.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            chat.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
-
-            chat.Controls.Add(_rtbChat, 0, 0);
-            chat.SetColumnSpan(_rtbChat, 2);
-
-            var sendRow = new TableLayoutPanel
-            {
-                Dock = DockStyle.Fill,
-                ColumnCount = 2
-            };
-            sendRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            sendRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
-
-            sendRow.Controls.Add(_txtChat, 0, 0);
-            sendRow.Controls.Add(_btnSend, 1, 0);
-
-            chat.Controls.Add(sendRow, 0, 1);
-            chat.SetColumnSpan(sendRow, 2);
-
-            split.Panel2.Controls.Add(chat);
-            Controls.Add(split);
-
-            // Apply theme and emphasize actions
+            // ====== Áp theme và nút ======
             Theme.Apply(this);
             Theme.StyleSecondary(_btnCopyRoom);
             Theme.StyleSecondary(_btnCam);
@@ -221,6 +165,114 @@ namespace MeetingClient.Forms
             _userMenu.Items.Add(_miKick);
             _lstUsers.ContextMenuStrip = _userMenu;
             _miKick.Enabled = _isHost;
+            _btnKick.Enabled = _isHost;
+
+            // ===================== BỐ CỤC MỚI: 3 CỘT =====================
+            // Bạn có thể đổi nhanh 2 con số sau:
+            int chatRightWidth = 320; // <- kích thước cột phải (chat)
+            int previewHeight = 210;  // <- chiều cao nhóm preview (local)
+
+            // Content 3 cột: Trái (260), Giữa (*), Phải (chatRightWidth)
+            var content = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 3,
+                RowCount = 1,
+                BackColor = Theme.Palette.Background
+            };
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 260)); // trái
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));  // giữa
+            content.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, chatRightWidth)); // phải
+            Controls.Add(content);
+
+            // ===== CỘT TRÁI: PREVIEW + USERS + KICK =====
+            var leftCol = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 3,
+                Padding = new Padding(8)
+            };
+            leftCol.RowStyles.Add(new RowStyle(SizeType.Absolute, previewHeight)); // Preview
+            leftCol.RowStyles.Add(new RowStyle(SizeType.Percent, 100));            // Users
+            leftCol.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));            // Nút kick
+
+            // Group Preview
+            var gbPreview = new GroupBox
+            {
+                Text = "Video của bạn",
+                Dock = DockStyle.Fill,
+                Padding = new Padding(8)
+            };
+            var previewWrap = new TableLayoutPanel { Dock = DockStyle.Fill, RowCount = 2 };
+            previewWrap.RowStyles.Add(new RowStyle(SizeType.Absolute, 22));
+            previewWrap.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            _lbLocal.Text = $"({_username})";
+            _lbLocal.Dock = DockStyle.Top;
+            _picLocal.Dock = DockStyle.Fill;
+            gbPreview.Controls.Add(previewWrap);
+            previewWrap.Controls.Add(_lbLocal, 0, 0);
+            previewWrap.Controls.Add(_picLocal, 0, 1);
+
+            // Group Users
+            var gbUsers = new GroupBox
+            {
+                Text = "Người tham gia",
+                Dock = DockStyle.Fill,
+                Padding = new Padding(8)
+            };
+            _lstUsers.Dock = DockStyle.Fill;
+            gbUsers.Controls.Add(_lstUsers);
+
+            _btnKick.Dock = DockStyle.Fill;
+
+            leftCol.Controls.Add(gbPreview, 0, 0);
+            leftCol.Controls.Add(gbUsers, 0, 1);
+            leftCol.Controls.Add(_btnKick, 0, 2);
+
+            content.Controls.Add(leftCol, 0, 0);
+
+            // ===== CỘT GIỮA: VIDEO GRID =====
+            var gbVideo = new GroupBox
+            {
+                Text = "Màn hình",
+                Dock = DockStyle.Fill,
+                Padding = new Padding(8)
+            };
+            _videoGrid.Dock = DockStyle.Fill;
+            gbVideo.Controls.Add(_videoGrid);
+            content.Controls.Add(gbVideo, 1, 0);
+
+            // ===== CỘT PHẢI: CHAT =====
+            var gbChat = new GroupBox
+            {
+                Text = "Chat",
+                Dock = DockStyle.Fill,
+                Padding = new Padding(8)
+            };
+            var chatLayout = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2
+            };
+            chatLayout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            chatLayout.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+
+            _rtbChat.Dock = DockStyle.Fill;
+            chatLayout.Controls.Add(_rtbChat, 0, 0);
+
+            var sendRow = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2 };
+            sendRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            sendRow.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
+            _txtChat.Dock = DockStyle.Fill;
+            _btnSend.Dock = DockStyle.Fill;
+            sendRow.Controls.Add(_txtChat, 0, 0);
+            sendRow.Controls.Add(_btnSend, 1, 0);
+
+            chatLayout.Controls.Add(sendRow, 0, 1);
+            gbChat.Controls.Add(chatLayout);
+            content.Controls.Add(gbChat, 2, 0);
 
             // ===== Sự kiện =====
             _btnCopyRoom.Click += (_, __) => { try { Clipboard.SetText(_roomId); _lblNet.Text = "Đã sao chép mã phòng"; } catch { } };
@@ -380,12 +432,12 @@ namespace MeetingClient.Forms
                         {
                             if (_remoteTiles.TryGetValue(user, out var pb))
                             {
-                                _videoGrid.Controls.Remove(pb.Parent.Parent); // Remove the cell panel
+                                _videoGrid.Controls.Remove(pb?.Parent?.Parent as Control); // Remove the cell panel
                                 _remoteTiles.Remove(user);
                             }
                         }
 
-                        UpdateVideoGrid();
+                        AdjustVideoGridLayout();
                     }));
                     break;
                 }
@@ -474,7 +526,7 @@ namespace MeetingClient.Forms
                 Text = user,
                 Dock = DockStyle.Top,
                 Height = 22,
-                ForeColor = Color.White, // Fallback to White instead of Theme.Palette.TextSecondary
+                ForeColor = Color.White, // Fallback
                 TextAlign = ContentAlignment.MiddleCenter,
                 Padding = new Padding(6, 3, 6, 3)
             };
@@ -644,7 +696,7 @@ namespace MeetingClient.Forms
         private async void VideoTimer_Tick(object? sender, EventArgs e)
         {
             if (!_camOn) return;
-            int w = 240, h = 180; // Adjusted for preview size
+            int w = 240, h = 180; // kích thước demo
             using var bmp = new Bitmap(w, h);
             using var g = Graphics.FromImage(bmp);
             g.Clear(Color.FromArgb(20, 20, 20));
