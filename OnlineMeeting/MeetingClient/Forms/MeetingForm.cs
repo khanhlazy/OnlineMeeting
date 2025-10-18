@@ -66,7 +66,7 @@ namespace MeetingClient.Forms
         private readonly ListBox _lstUsers = new() { Dock = DockStyle.Fill, BorderStyle = BorderStyle.FixedSingle };
         private readonly Button _btnKick = new() { Text = "Kick (Host)", Dock = DockStyle.Bottom, Height = 32, Enabled = false };
 
-        // Trung tâm: Video grid
+        // Trung tâm: Video grid (tự co giãn)
         private readonly TableLayoutPanel _videoGrid = new()
         {
             Dock = DockStyle.Fill,
@@ -111,22 +111,28 @@ namespace MeetingClient.Forms
         private VideoInputMode _videoMode = VideoInputMode.Real;
         private MicInputMode _micMode = MicInputMode.Real;
 
-        // Multi-video: quản lý tile theo username
-        private readonly Dictionary<string, PictureBox> _remoteTiles = new();
+        // Multi-video: quản lý tile theo username (giữ cả cell và PictureBox)
+        private readonly Dictionary<string, (Panel cell, PictureBox pb)> _tiles = new();
 
         // ======= chống crash khi mất kết nối =======
         private bool _shownDisconnect = false;
+
+        // Reflow cấu hình
+        private const int MinTileWidth = 320; // bề rộng tối thiểu 1 tile (tuỳ chỉnh)
+        private const int MaxCols = 4;        // tối đa số cột (3–4 tuỳ ý)
 
         public MeetingForm(ClientNet net, string username, string roomId, bool isHost)
         {
             _net = net; _username = username; _roomId = roomId; _isHost = isHost;
 
-            // cấu hình lưới video 2x2
+            // lưới video khởi tạo
             _videoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
             _videoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
-            _videoGrid.RowCount = 2;
-            _videoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
-            _videoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            _videoGrid.RowCount = 1;
+            _videoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+            // Reflow khi đổi kích thước
+            _videoGrid.SizeChanged += (_, __) => ReflowTiles();
         }
 
         // ========== Helper xử lý lỗi mạng ==========
@@ -455,25 +461,20 @@ namespace MeetingClient.Forms
                             );
                             currentUsers.Add(name);
 
-                            // Only create tiles for remote users, not the local user
-                            if (name != _username)
-                            {
-                                EnsureTile(name);
-                            }
+                            // tạo tile cho user khác mình
+                            if (name != _username) EnsureTile(name);
                         }
 
                         // Remove tiles for users who left
-                        var usersToRemove = _remoteTiles.Keys.Where(u => !currentUsers.Contains(u)).ToList();
-                        foreach (var user in usersToRemove)
+                        var leftUsers = _tiles.Keys.Where(u => !currentUsers.Contains(u)).ToList();
+                        foreach (var user in leftUsers)
                         {
-                            if (_remoteTiles.TryGetValue(user, out var pb))
-                            {
-                                _videoGrid.Controls.Remove(pb?.Parent?.Parent as Control); // Remove the cell panel
-                                _remoteTiles.Remove(user);
-                            }
+                            var cell = _tiles[user].cell;
+                            _videoGrid.Controls.Remove(cell);
+                            _tiles.Remove(user);
                         }
 
-                        AdjustVideoGridLayout();
+                        ReflowTiles();
                     }));
                     break;
                 }
@@ -535,7 +536,7 @@ namespace MeetingClient.Forms
         private void ShowRemoteFrame(string user, Image img)
         {
             if (user == _username) return; // Skip displaying local video in grid
-            var pb = EnsureTile(user);
+            var pb = EnsureTile(user);     // tạo nếu chưa có (video có thể tới trước Participants)
             var old = pb.Image;
             pb.Image = (Image)img.Clone();
             old?.Dispose();
@@ -543,11 +544,11 @@ namespace MeetingClient.Forms
 
         private PictureBox EnsureTile(string user)
         {
-            if (_remoteTiles.TryGetValue(user, out var pb))
-                return pb;
+            if (_tiles.TryGetValue(user, out var t))
+                return t.pb;
 
             // PictureBox hiển thị
-            pb = new PictureBox
+            var pb = new PictureBox
             {
                 Dock = DockStyle.Fill,
                 BorderStyle = BorderStyle.FixedSingle,
@@ -586,35 +587,63 @@ namespace MeetingClient.Forms
             cellLayout.Controls.Add(pb, 0, 1);
             cell.Controls.Add(cellLayout);
 
-            // Tính hàng/cột (2 cột, tối đa 2 hàng)
-            var index = _remoteTiles.Count;
-            var row = index / 2;
-            var col = index % 2;
-
-            if (row < 2) // Limit to 2x2 grid
-            {
-                _videoGrid.Controls.Add(cell, col, row);
-                _remoteTiles[user] = pb;
-            }
-
+            _tiles[user] = (cell, pb);
+            ReflowTiles(); // thêm xong là sắp xếp lại
             return pb;
         }
 
-        private void AdjustVideoGridLayout()
+        // Sắp xếp lưới linh hoạt (hỗ trợ 5,6,10... người)
+        private void ReflowTiles()
         {
-            var remoteCount = _remoteTiles.Count;
-            var rows = Math.Min(2, (int)Math.Ceiling(remoteCount / 2.0)); // Max 2 rows
+            _videoGrid.SuspendLayout();
+
+            _videoGrid.Controls.Clear();
+
+            var cells = _tiles
+                .OrderBy(kv => kv.Key, StringComparer.Ordinal) // hoặc thay bằng thứ tự join
+                .Select(kv => kv.Value.cell)
+                .ToList();
+
+            int count = cells.Count;
+            if (count == 0)
+            {
+                _videoGrid.RowCount = 1;
+                _videoGrid.ColumnCount = 1;
+                _videoGrid.RowStyles.Clear();
+                _videoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+                _videoGrid.ColumnStyles.Clear();
+                _videoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                _videoGrid.ResumeLayout();
+                return;
+            }
+
+            // Tính số cột theo bề rộng hiện tại
+            int clientW = Math.Max(1, _videoGrid.ClientSize.Width);
+            int approxTileW = MinTileWidth + 16; // 16 ~ margin 8 hai bên
+            int colsByWidth = Math.Max(1, clientW / approxTileW);
+            int cols = Math.Min(MaxCols, Math.Max(1, colsByWidth));
+            cols = Math.Min(cols, count);
+            int rows = (int)Math.Ceiling((double)count / cols);
+
+            _videoGrid.ColumnCount = cols;
             _videoGrid.RowCount = rows;
+
+            _videoGrid.ColumnStyles.Clear();
+            for (int c = 0; c < cols; c++)
+                _videoGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / cols));
+
             _videoGrid.RowStyles.Clear();
-            for (int i = 0; i < rows; i++)
+            for (int r = 0; r < rows; r++)
+                _videoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 100f / rows));
+
+            for (int i = 0; i < count; i++)
             {
-                _videoGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+                int row = i / cols;
+                int col = i % cols;
+                _videoGrid.Controls.Add(cells[i], col, row);
             }
-            // Clear excess controls if any
-            while (_videoGrid.Controls.Count > remoteCount)
-            {
-                _videoGrid.Controls.RemoveAt(_videoGrid.Controls.Count - 1);
-            }
+
+            _videoGrid.ResumeLayout();
         }
 
         // ============ Encode/Decode "<user>|bytes" ============
@@ -649,17 +678,19 @@ namespace MeetingClient.Forms
                     _camOn = false; _btnCam.Text = "Camera: Tắt"; return;
                 }
                 _videoTimer = new System.Windows.Forms.Timer { Interval = 100 };
-                _videoTimer.Tick += async (_, __) =>
-                {
-                    if (!_camOn || _cvCap == null) return;
-                    using var mat = new Mat();
-                    if (!_cvCap.Read(mat) || mat.Empty()) return;
-                    using var bmp = BitmapConverter.ToBitmap(mat);
-                    await SendFrameAsync((Bitmap)bmp.Clone());
-                };
+                _videoTimer.Tick += CameraTimer_Tick; // handler riêng để có thể gỡ ra
                 _videoTimer.Start();
             }
             catch (Exception ex) { MessageBox.Show("Lỗi camera: " + ex.Message); }
+        }
+
+        private async void CameraTimer_Tick(object? sender, EventArgs e)
+        {
+            if (!_camOn || _cvCap == null) return;
+            using var mat = new Mat();
+            if (!_cvCap.Read(mat) || mat.Empty()) return;
+            using var bmp = BitmapConverter.ToBitmap(mat);
+            await SendFrameAsync((Bitmap)bmp.Clone());
         }
 
         private void StopCamera()
@@ -670,7 +701,7 @@ namespace MeetingClient.Forms
             _picLocal.Image = null;
             if (_videoTimer != null)
             {
-                try { _videoTimer.Stop(); _videoTimer.Tick -= VideoTimer_Tick; } catch { }
+                try { _videoTimer.Tick -= CameraTimer_Tick; _videoTimer.Stop(); } catch { }
                 _videoTimer.Dispose();
                 _videoTimer = null;
             }
@@ -724,12 +755,12 @@ namespace MeetingClient.Forms
         private void StartDemoVideo()
         {
             _videoTimer = new System.Windows.Forms.Timer { Interval = 100 }; // ~10 fps
-            _videoTimer.Tick += VideoTimer_Tick;
+            _videoTimer.Tick += VideoTimer_DemoTick;
             _demoFrameTick = 0;
             _videoTimer.Start();
         }
 
-        private async void VideoTimer_Tick(object? sender, EventArgs e)
+        private async void VideoTimer_DemoTick(object? sender, EventArgs e)
         {
             if (!_camOn) return;
             try
@@ -842,10 +873,10 @@ namespace MeetingClient.Forms
             }, ct);
         }
 
-        // ======= Kick dialog (không gọi ở đâu — giữ lại nếu muốn dùng) =======
+        // ======= Kick dialog (tuỳ chọn) =======
         private string? ShowKickDialog()
         {
-            var users = _remoteTiles.Keys
+            var users = _tiles.Keys
                 .Concat(_lstUsers.Items.Cast<string>().Select(x => x.Split(' ')[0]))
                 .Distinct()
                 .Where(u => u != _username)
