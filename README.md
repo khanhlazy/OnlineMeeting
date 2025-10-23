@@ -1,4 +1,4 @@
-OnlineMeeting (NET 9) – Họp trực tuyến, chat, camera/mic, UI rực rỡ
+OnlineMeeting (NET 9) – Họp trực tuyến, chat, camera/mic
 
 ### 1) Yêu cầu môi trường
 - **HĐH**: Windows 10+
@@ -44,7 +44,7 @@ Hoặc mở `OnlineMeeting_fixed.sln` bằng Visual Studio 2022 (17.12+) và Bui
 - **Khả năng nhiều phiên bản**: mở nhiều client trên cùng máy để thử nghiệm
 
 ### 7) UI & Trải nghiệm
-- Giao diện WinForms đã **áp dụng theme đậm** với màu **tím/teal nổi bật**, trạng thái rõ ràng
+- Giao diện WinForms đã theme đậm với màu tím, trạng thái rõ ràng
 - Nút hành động chính dùng màu nổi bật; thanh công cụ và status bar đồng bộ tông màu
 - TextBox/ListBox/RichTextBox dùng nền tối, chữ sáng; hỗ trợ tooltip, placeholder
 
