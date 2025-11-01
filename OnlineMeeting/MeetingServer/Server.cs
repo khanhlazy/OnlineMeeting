@@ -54,6 +54,8 @@ public class Server
             {
                 int read = await ns.ReadAsync(buf, 0, buf.Length, ct);
                 if (read <= 0) break;
+                // Đảm bảo nối thêm vào cuối buffer (TCP có thể trả về gói lẻ)
+                recv.Position = recv.Length;
                 recv.Write(buf, 0, read);
                 // Tách các gói đầy đủ từ buffer và xử lý từng gói
                 while (Packet.TryParse(ref recv, out var type, out var payload))
