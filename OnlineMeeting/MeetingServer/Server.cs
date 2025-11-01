@@ -199,9 +199,12 @@ public class Server
                 var target = room.Members.FirstOrDefault(m => m.Username == targetUser);
                 if (target != null && target != room.Host)
                 {
-                    await SendAsync(target, MsgType.Info, Packet.Str("KICKED"));
-                    target.Tcp.Close();
                     room.Remove(target.Username);
+                    target.RoomId = null;
+                    target.IsHost = false;
+                    target.CamOn = false;
+                    target.MicOn = false;
+                    await SendAsync(target, MsgType.Info, Packet.Str("KICKED"));
                     await BroadcastParticipants(room);
                 }
                 break;
