@@ -13,7 +13,7 @@ namespace MeetingClient.Net
         // Sự kiện: bắn ra mỗi khi nhận được gói tin đầy đủ từ server
         public event Action<MsgType, byte[]>? OnMessage;
 
-        private readonly byte[] _buf = new byte[1024 * 1024];
+        private readonly byte[] _buf = new byte[Packet.HeaderSize + Packet.MaxPayloadLength];
         private MemoryStream _recv = new();
         private bool _running = false;
 
@@ -33,6 +33,7 @@ namespace MeetingClient.Net
                 };
 
                 await Tcp.ConnectAsync(host, port);
+                _recv = new MemoryStream();
                 _running = true;
                 _ = Task.Run(RecvLoop);
             }
@@ -59,6 +60,10 @@ namespace MeetingClient.Net
                         OnMessage?.Invoke(type, payload);
                 }
             }
+            catch (InvalidDataException ex)
+            {
+                OnMessage?.Invoke(MsgType.Info, Packet.Str("Gói tin không hợp lệ: " + ex.Message));
+            }
             catch (IOException)
             {
                 // Kết nối bị ngắt hoặc server đóng socket
@@ -81,7 +86,15 @@ namespace MeetingClient.Net
             if (!Tcp.Connected) 
                 throw new Exception("Mất kết nối đến server.");
 
-            var data = Packet.Make(type, payload);
+            byte[] data;
+            try
+            {
+                data = Packet.Make(type, payload);
+            }
+            catch (InvalidDataException ex)
+            {
+                throw new Exception("Payload không hợp lệ: " + ex.Message);
+            }
             try
             {
                 await Stream.WriteAsync(data, 0, data.Length);
