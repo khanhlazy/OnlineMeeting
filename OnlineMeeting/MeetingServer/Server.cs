@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using MeetingShared;
@@ -46,7 +47,7 @@ public class Server
     {
         Console.WriteLine("Client kết nối: " + c.Tcp.Client.RemoteEndPoint);
         var ns = c.Stream;
-        var buf = new byte[1024 * 1024];
+        var buf = new byte[Packet.HeaderSize + Packet.MaxPayloadLength];
         var recv = new MemoryStream();
         try
         {
@@ -54,6 +55,8 @@ public class Server
             {
                 int read = await ns.ReadAsync(buf, 0, buf.Length, ct);
                 if (read <= 0) break;
+                // Đảm bảo nối thêm vào cuối buffer (TCP có thể trả về gói lẻ)
+                recv.Position = recv.Length;
                 recv.Write(buf, 0, read);
                 // Tách các gói đầy đủ từ buffer và xử lý từng gói
                 while (Packet.TryParse(ref recv, out var type, out var payload))
@@ -62,13 +65,19 @@ public class Server
                 }
             }
         }
+        catch (InvalidDataException ex)
+        {
+            Console.WriteLine($"Client gửi dữ liệu không hợp lệ: {ex.Message}");
+        }
         catch (Exception ex)
         {
             Console.WriteLine($"Lỗi client: {ex.Message}");
         }
         finally
         {
+            recv.Dispose();
             await OnDisconnectAsync(c);
+            _clients.TryRemove(c, out _);
             c.Tcp.Close();
             Console.WriteLine("Client ngắt kết nối");
         }
@@ -121,21 +130,15 @@ public class Server
 
             // Gửi chat/video/audio cho các thành viên khác
             case MsgType.Chat:
-{
-    if (c.RoomId is null) break;
-    var room = _rooms.Get(c.RoomId);
-    if (room is null) break;
+            {
+                if (c.RoomId is null) break;
+                var room = _rooms.Get(c.RoomId);
+                if (room is null) break;
 
-    var text = $"{c.Username}: {Packet.Str(payload)}";
-    var pkt = Packet.Make(MsgType.Chat, Packet.Str(text));
-
-    foreach (var m in room.Members)
-    {
-        if (m == c) continue; // không echo cho chính người gửi
-        try { await m.Stream.WriteAsync(pkt); } catch { }
-    }
-    break;
-}
+                var text = $"{c.Username}: {Packet.Str(payload)}";
+                await BroadcastRoom(room, c, MsgType.Chat, Packet.Str(text));
+                break;
+            }
 
             case MsgType.Video:
             {
@@ -215,7 +218,17 @@ public class Server
     // Gửi payload tới tất cả thành viên trong phòng (trừ người gửi)
     private async Task BroadcastRoom(Room room, ClientConn from, MsgType type, byte[] payload)
     {
-        var pkt = Packet.Make(type, payload);
+        byte[] pkt;
+        try
+        {
+            pkt = Packet.Make(type, payload);
+        }
+        catch (InvalidDataException ex)
+        {
+            Console.WriteLine($"Bỏ qua broadcast do payload không hợp lệ: {ex.Message}");
+            return;
+        }
+
         foreach (var m in room.Members)
         {
             if (m == from) continue;
@@ -230,16 +243,30 @@ public class Server
             .Select(m => $"{m.Username}:{(m.IsHost?1:0)}:{(m.CamOn?1:0)}:{(m.MicOn?1:0)}")
             .ToArray();
         var payload = Packet.Str(string.Join(";", list));
-        var pkt = Packet.Make(MsgType.Participants, payload);
-        foreach (var m in room.Members)
-            try { await m.Stream.WriteAsync(pkt); } catch { }
+        try
+        {
+            var pkt = Packet.Make(MsgType.Participants, payload);
+            foreach (var m in room.Members)
+                try { await m.Stream.WriteAsync(pkt); } catch { }
+        }
+        catch (InvalidDataException ex)
+        {
+            Console.WriteLine($"Không thể gửi danh sách thành viên: {ex.Message}");
+        }
     }
 
     // Gửi 1 gói tin đơn lẻ tới client
     private async Task SendAsync(ClientConn c, MsgType t, byte[] p)
     {
-        var pkt = Packet.Make(t, p);
-        try { await c.Stream.WriteAsync(pkt); } catch { }
+        try
+        {
+            var pkt = Packet.Make(t, p);
+            try { await c.Stream.WriteAsync(pkt); } catch { }
+        }
+        catch (InvalidDataException ex)
+        {
+            Console.WriteLine($"Không thể gửi gói tin tới {c.Username}: {ex.Message}");
+        }
     }
 
     // Dọn dẹp khi client rời phòng/ngắt kết nối
