@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO;
 using System.Text;
 
 namespace MeetingShared;
@@ -24,32 +25,61 @@ public enum MsgType : byte
 
 public static class Packet
 {
+    public const int HeaderSize = 5;
+    // Giới hạn payload 1 MB để tránh client/server bị DoS bởi gói quá lớn
+    public const int MaxPayloadLength = 1024 * 1024;
+
     // Đóng gói: [1 byte type][4 byte length BE][payload]
     public static byte[] Make(MsgType type, byte[] payload)
     {
         payload ??= Array.Empty<byte>();
-        var buf = new byte[1 + 4 + payload.Length];
+        if (payload.Length > MaxPayloadLength)
+            throw new InvalidDataException($"Payload vượt quá giới hạn {MaxPayloadLength} bytes");
+
+        var buf = new byte[HeaderSize + payload.Length];
         buf[0] = (byte)type;
-        BinaryPrimitives.WriteInt32BigEndian(buf.AsSpan(1,4), payload.Length);
-        payload.CopyTo(buf, 5);
+        BinaryPrimitives.WriteInt32BigEndian(buf.AsSpan(1, 4), payload.Length);
+        payload.CopyTo(buf, HeaderSize);
         return buf;
     }
 
     // Giải gói từ buffer nhận. Nếu chưa đủ dữ liệu sẽ trả về false và chờ thêm.
     public static bool TryParse(ref MemoryStream recvBuf, out MsgType type, out byte[] payload)
     {
-        type = 0; payload = Array.Empty<byte>();
-        if (recvBuf.Length < 5) return false;
-        var span = recvBuf.ToArray().AsSpan();
-        type = (MsgType)span[0];
-        int len = BinaryPrimitives.ReadInt32BigEndian(span.Slice(1,4));
-        if (span.Length < 5 + len) return false;
-        payload = span.Slice(5, len).ToArray();
-        var remaining = span.Slice(5 + len).ToArray();
+        type = default;
+        payload = Array.Empty<byte>();
+
+        if (recvBuf.Length < HeaderSize)
+            return false;
+
+        if (!recvBuf.TryGetBuffer(out ArraySegment<byte> segment))
+        {
+            segment = new ArraySegment<byte>(recvBuf.ToArray());
+        }
+
+        if (segment.Array is null)
+            return false;
+
+        var span = segment.Array.AsSpan(segment.Offset, segment.Count);
+        var msgType = (MsgType)span[0];
+        int len = BinaryPrimitives.ReadInt32BigEndian(span.Slice(1, 4));
+
+        if (len < 0 || len > MaxPayloadLength)
+            throw new InvalidDataException($"Độ dài payload không hợp lệ: {len}");
+
+        if (span.Length < HeaderSize + len)
+            return false;
+
+        payload = span.Slice(HeaderSize, len).ToArray();
+
+        var remainingCount = span.Length - HeaderSize - len;
         recvBuf.SetLength(0);
+        if (remainingCount > 0)
+        {
+            recvBuf.Write(span.Slice(HeaderSize + len, remainingCount));
+        }
         recvBuf.Position = 0;
-        recvBuf.Write(remaining);
-        recvBuf.Position = 0;
+        type = msgType;
         return true;
     }
 

@@ -16,7 +16,7 @@ dotnet --version          # cần 9.x
 dotnet restore
 dotnet build -c Release
 ```
-Hoặc mở `OnlineMeeting_fixed.sln` bằng Visual Studio 2022 (17.12+) và Build.
+Hoặc mở `OnlineMeeting.sln` bằng Visual Studio 2022 (17.12+) và Build.
 
 ### 4) Cấu hình & Database (tùy chọn)
 - Mở `OnlineMeeting/MeetingServer/appsettings.json` để chỉnh chuỗi kết nối.
