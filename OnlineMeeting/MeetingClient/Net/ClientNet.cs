@@ -52,6 +52,7 @@ namespace MeetingClient.Net
                     int read = await Stream.ReadAsync(_buf, 0, _buf.Length);
                     if (read <= 0) break;
 
+                    _recv.Position = _recv.Length;
                     _recv.Write(_buf, 0, read);
 
                     while (Packet.TryParse(ref _recv, out var type, out var payload))
